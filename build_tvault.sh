@@ -232,7 +232,7 @@ if [[ "$PKG_TYPE" == "docker" ]]; then
    echo "-----------------------------------------------------"
    cp $BASEDIR/tvault_all.tar.gz $DOCKER_FILE_DIR/
    cd $BASEDIR
-   mvn clean package docker:build
+   
 fi 
 
 echo "-----------------------------------------------------"
