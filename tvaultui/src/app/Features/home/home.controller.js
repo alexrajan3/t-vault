@@ -32,6 +32,10 @@
             $scope.domainName = AppConstant.DOMAIN_NAME;
             $scope.userID = 'Username';
             Idle.unwatch();
+            
+            if(SessionStore.getItem("myVaultKey")){ /* Check whether the user is already logged in */
+                $state.go('safes');
+            }
             if ($scope.authType.toLowerCase() === 'ldap') {
                 $scope.userID = 'Corp ID';
             } else if ($scope.authType.toLowerCase() === 'ldap1900') {
