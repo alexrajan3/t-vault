@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
@@ -113,8 +114,7 @@ public class WorkloadDetailsService {
 	 * @return
 	 */
 	private JsonObject getApiResponse(String api)  {
-		JsonParser jsonParser = new JsonParser();
-		Gson gson = new Gson();
+		JsonParser jsonParser = new JsonParser();		
 		HttpClient httpClient =null;
 		try {
 
@@ -131,34 +131,47 @@ public class WorkloadDetailsService {
 
 				
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException e1) {
-			// TODO Auto-generated catch block
 			log.debug(e1.getMessage());
 		}
 
-		//HttpClient httpClient = HttpClientBuilder.create().build();
 		HttpGet getRequest = new HttpGet(api);
 		getRequest.addHeader("accept", "application/json");
 		getRequest.addHeader("Authorization",workloadEndpointToken);
 		String output = "";
-		StringBuffer jsonResponse = new StringBuffer();
-
+		StringBuilder jsonResponse = new StringBuilder();
+		
+		HttpResponse apiResponse = null;
 		try {
-			HttpResponse apiResponse = apiResponse = httpClient.execute(getRequest);
-			if (apiResponse.getStatusLine().getStatusCode() != 200) {
-				return null;
+			if(httpClient != null) {
+				apiResponse = httpClient.execute(getRequest);
 			}
-			BufferedReader br = new BufferedReader(new InputStreamReader((apiResponse.getEntity().getContent())));
-			while ((output = br.readLine()) != null) {
-				jsonResponse.append(output);
-			}
-			return (JsonObject) jsonParser.parse(jsonResponse.toString());
-		} catch (IOException e) {
+		} catch (IOException e1) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "getApprolesFromCwm").
-					put(LogMessage.MESSAGE, String.format ("Failed to parse CWM api response")).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.MESSAGE, "Failed to parse CWM api response").
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
+		} 
+		
+		if (apiResponse != null && apiResponse.getStatusLine().getStatusCode() != 200) {
+			return null;
+		}
+		if (apiResponse != null) {
+			try(BufferedReader br = new BufferedReader(new InputStreamReader((apiResponse.getEntity().getContent())))) {			
+				
+				while ((output = br.readLine()) != null) {
+					jsonResponse.append(output);
+				}
+				return (JsonObject) jsonParser.parse(jsonResponse.toString());
+			} catch (IOException e) {
+				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+						put(LogMessage.ACTION, "getApprolesFromCwm").
+						put(LogMessage.MESSAGE, "Failed to parse CWM api response").
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+						build()));
+			}
 		}
 		return null;
 	}

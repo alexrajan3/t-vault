@@ -38,9 +38,7 @@ public class LogMessage implements Serializable {
 	private static final long serialVersionUID = 7117086432693787101L;
 	private Map<String,Object> messages;
 	
-	public LogMessage() {
-		// TODO Auto-generated constructor stub
-	}
+	public LogMessage() {}
 
 	public LogMessage(Map<String, Object> messages) {
 		super();

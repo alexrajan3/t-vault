@@ -81,8 +81,8 @@ public final class ControllerUtil {
 	
 	private static String sdbNameAllowedCharacters="[a-z0-9_-]+";
 	
-	private final static String[] mountPaths = {"apps","shared","users"};
-	private final static String[] permissions = {"read", "write", "deny", "sudo"};
+	private static final String[] mountPaths = {"apps","shared","users"};
+	private static final String[] permissions = {"read", "write", "deny", "sudo"};
 	
 	@Value("${selfservice.ssfilelocation}")
     private String sscredLocation;
@@ -1018,16 +1018,16 @@ public final class ControllerUtil {
 			ObjectMapper objMapper = new ObjectMapper();
 			for(String role : roles){
 				Response roleResponse = reqProcessor.process("/auth/aws/roles","{\"role\":\""+role+"\"}",token);
-				String responseJson=TVaultConstants.EMPTY;
-				String policies =TVaultConstants.EMPTY;
-				String currentpolicies =TVaultConstants.EMPTY;
+				String responseJson="";
+				String policies ="";
+				String currentpolicies ="";
 				
 				if(HttpStatus.OK.equals(roleResponse.getHttpstatus())){
 					responseJson = roleResponse.getResponse();	
 					try {
 						JsonNode policiesArry =objMapper.readTree(responseJson).get("policies");
 						for(JsonNode policyNode : policiesArry){
-							currentpolicies =	(currentpolicies == "" ) ? currentpolicies+policyNode.asText():currentpolicies+","+policyNode.asText();
+							currentpolicies =	(currentpolicies.equals("")) ? currentpolicies+policyNode.asText():currentpolicies+","+policyNode.asText();
 						}
 					} catch (IOException e) {
 						log.error(e);
@@ -1690,8 +1690,10 @@ public final class ControllerUtil {
 			for (Object key : map.keySet()) {
 				secretKey = (String) key;
 				secretValue = (String) map.get(key);
-			    break;
-			  }
+				if(!ObjectUtils.isEmpty(key)) {
+					break;
+				}
+			}
 			return secretKey;
 		} catch (JsonParseException e) {
 			return secretKey;

@@ -1,26 +1,25 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** **************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 the "License";
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*************************************************************************** */
 package com.tmobile.cso.vault.api.model;
 
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -30,11 +29,12 @@ import java.util.Date;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import com.tmobile.cso.vault.api.common.TVaultConstants;
-import io.swagger.annotations.ApiModelProperty;
 import org.springframework.util.StringUtils;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.tmobile.cso.vault.api.common.TVaultConstants;
+
+import io.swagger.annotations.ApiModelProperty;
 
 public class ADServiceAccount implements Serializable {
 	
@@ -72,7 +72,7 @@ public class ADServiceAccount implements Serializable {
 	private String accountExpires;
     private String accountExpiresFormatted;
 
-	private String pwdLastSet;
+	private String passwrdLastSet;
     private String pwdLastSetFormatted;
 
 	private int maxPwdAge;
@@ -186,7 +186,7 @@ public class ADServiceAccount implements Serializable {
 	 * Formats the whenCreated using the pattern "yyyy-MM-dd HH:mm:ss"
 	 * @return
 	 */
-	public String getCreationDate() throws IllegalArgumentException, DateTimeException {
+	public String getCreationDate() {
 		if (whenCreated != null) {
 			return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.ofInstant(whenCreated, ZoneOffset.UTC));
 		}
@@ -221,7 +221,10 @@ public class ADServiceAccount implements Serializable {
             // Default TTL
             sAccountExpiration = TVaultConstants.NEVER_EXPIRE;
         }
-        return accountExpiresFormatted = sAccountExpiration;
+        
+        accountExpiresFormatted = sAccountExpiration;
+        
+        return accountExpiresFormatted;
     }
 	/**
 	 * @return the passwordExpiry
@@ -244,7 +247,7 @@ public class ADServiceAccount implements Serializable {
 						pwdExpiryDateTime = TVaultConstants.EXPIRED;
 					}
 					else {
-						String passwordExpiry = dateFormat.format(c.getTime());
+						String passwordExpiryTime = dateFormat.format(c.getTime());
 						// find days to expire
 						long difference = c.getTime().getTime() - new Date().getTime();
 						String daysToExpire;
@@ -254,14 +257,16 @@ public class ADServiceAccount implements Serializable {
 						else { // less than one day
 							daysToExpire = TimeUnit.HOURS.convert(difference, TimeUnit.MILLISECONDS) + " hours";
 						}
-						pwdExpiryDateTime = passwordExpiry +" ("+daysToExpire+")";
+						pwdExpiryDateTime = passwordExpiryTime +" ("+daysToExpire+")";
 					}
 				}catch(ParseException e){
 					pwdExpiryDateTime = TVaultConstants.EMPTY;
 				}
 			}
 		}
-		return passwordExpiry = pwdExpiryDateTime;
+		passwordExpiry = pwdExpiryDateTime;
+				
+		return passwordExpiry;
 	}
 	/**
 	 * @return the accountStatus
@@ -338,24 +343,24 @@ public class ADServiceAccount implements Serializable {
 	}
 
 	/**
-	 * @return the pwdLastSet
+	 * @return the passwrdLastSet
 	 */
-	public String getPwdLastSet() {
-		return pwdLastSet;
+	public String getPasswrdLastSet() {
+		return passwrdLastSet;
 	}
     /**
      * @return the pwdLastSetFormatted
      */
     public String getPwdLastSetFormatted() {
-    	/*
+    	/**
     		pwdLastSet uses the same calculation:
     		Date pwdSet = new Date(pwdLastSet/10000-TVaultConstants.FILETIME_EPOCH_DIFF);
     	 */
         String pwdLastSetDateTime = TVaultConstants.EMPTY;
-        if (pwdLastSet!= null && !pwdLastSet.equals("0")) {
+        if (passwrdLastSet!= null && !passwrdLastSet.equals("0")) {
             try {
                 dateFormat.setTimeZone(timeZonePST);
-                long lpwdLastSetRaw = Long.parseLong(pwdLastSet);
+                long lpwdLastSetRaw = Long.parseLong(passwrdLastSet);
                 Date pwdSet = new Date(lpwdLastSetRaw/10000-TVaultConstants.FILETIME_EPOCH_DIFF);
                 pwdLastSetDateTime = dateFormat.format(pwdSet);
             }
@@ -363,7 +368,9 @@ public class ADServiceAccount implements Serializable {
                 pwdLastSetDateTime = TVaultConstants.EMPTY;
             }
         }
-        return pwdLastSetFormatted = pwdLastSetDateTime;
+        pwdLastSetFormatted = pwdLastSetDateTime;
+        
+        return pwdLastSetFormatted;
     }
 	/**
 	 * @return the managedBy
@@ -372,10 +379,10 @@ public class ADServiceAccount implements Serializable {
 		return managedBy;
 	}
 	/**
-	 * @param pwdLastSet the pwdLastSet to set
+	 * @param passwrdLastSet the passwrdLastSet to set
 	 */
-	public void setPwdLastSet(String pwdLastSet) {
-		this.pwdLastSet = pwdLastSet;
+	public void setPasswrdLastSet(String passwrdLastSet) {
+		this.passwrdLastSet = passwrdLastSet;
 	}
 	/**
 	 * @param managedBy the managedBy to set
@@ -397,7 +404,8 @@ public class ADServiceAccount implements Serializable {
 				maxLife = TVaultConstants.SVC_ACC_STANDARD_MAXLIFE;
 			}
 		}
-		return maxPwdAge = (int)TimeUnit.DAYS.toSeconds(maxLife);
+		maxPwdAge = (int)TimeUnit.DAYS.toSeconds(maxLife);
+		return maxPwdAge;
 	}
 	/**
 	 * @param maxPwdAge the maxPwdAge to set
@@ -429,7 +437,7 @@ public class ADServiceAccount implements Serializable {
 	public String toString() {
 		return "ADServiceAccount [userId=" + userId + ", userEmail=" + userEmail + ", displayName=" + displayName
 				+ ", givenName=" + givenName + ", userName=" + userName + ", whenCreated=" + whenCreated
-				+ ", accountExpires=" + accountExpires + ", pwdLastSet=" + pwdLastSet + ", maxPwdAge=" + maxPwdAge
+				+ ", accountExpires=" + accountExpires + ", passwrdLastSet=" + passwrdLastSet + ", maxPwdAge=" + maxPwdAge
 				+ ", managedBy=" + managedBy + ", passwordExpiry=" + passwordExpiry + ", accountStatus=" + accountStatus
 				+ ", lockStatus=" + lockStatus + ", purpose=" + purpose + "]";
 	}

@@ -145,7 +145,7 @@ public class ServiceAccountsServiceTest {
         adServiceAccount.setUserName("testaccr");
         adServiceAccount.setPurpose("This is a test user account");
         adServiceAccount.setAccountExpires("Never");
-        adServiceAccount.setPwdLastSet("2019-05-14 07:09:32");
+        adServiceAccount.setPasswrdLastSet("2019-05-14 07:09:32");
         adServiceAccount.setMaxPwdAge(31536000);
         adServiceAccount.setPasswordExpiry("2020-05-13 07:09:32 (358 days)");
         ADUserAccount adUserAccount = new ADUserAccount();

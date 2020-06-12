@@ -2139,21 +2139,21 @@ public class  SafesService {
 			}
 			else {
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 						put(LogMessage.ACTION, "Remove Approle from SDB").
 						put(LogMessage.MESSAGE, "Remove Approle from SDB failed").
 						put(LogMessage.RESPONSE, "Role configuration failed.Please try again").
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"Role configuration failed.Please try again\"]}");
 			}
 		} else {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "Remove Approle from SDB").
 					put(LogMessage.MESSAGE, "Remove Approle from SDB failed").
 					put(LogMessage.RESPONSE, "Invalid Path").
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"Invalid 'path' specified\"]}");
 		}
@@ -2177,7 +2177,7 @@ public class  SafesService {
 			}
 			return false;
 		} catch (TVaultValidationException e) {
-			e.printStackTrace();
+			log.error("Error occured in isValidSafe() - safe exists check");
 			return false;
 		}
 

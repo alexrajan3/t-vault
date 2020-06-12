@@ -71,7 +71,7 @@ public class  ServiceAccountsService {
 	private String mailAdGroupContent;
 
 	private static Logger log = LogManager.getLogger(ServiceAccountsService.class);
-	private final static String[] permissions = {"read", "reset", "deny", "sudo"};
+	private static final String[] permissions = {"read", "reset", "deny", "sudo"};
 
 	@Autowired
 	@Qualifier(value = "svcAccLdapTemplate")
@@ -243,9 +243,9 @@ public class  ServiceAccountsService {
 						String rawExpDateTime = (String) attr.get("accountExpires").get();
 						adServiceAccount.setAccountExpires(rawExpDateTime);
 					}
-					if (attr.get("pwdLastSet") != null) {
-						String pwdLastSet = (String) attr.get("pwdLastSet").get();
-						adServiceAccount.setPwdLastSet(pwdLastSet);
+					if (attr.get("passwrdLastSet") != null) {
+						String pwdLastSet = (String) attr.get("passwrdLastSet").get();
+						adServiceAccount.setPasswrdLastSet(pwdLastSet);
 					}
 					if (attr.get("memberof") != null) {
 						String memberof = (String) attr.get("memberof").get();
@@ -390,7 +390,7 @@ public class  ServiceAccountsService {
 						Map<String, String> mailTemplateVariables = new Hashtable<>();
 						mailTemplateVariables.put("name", managerDetails.get(0).getDisplayName());
 						mailTemplateVariables.put("svcAccName", svcAccName);
-						if (serviceAccount.getAdGroup() != null && serviceAccount.getAdGroup() != "") {
+						if (serviceAccount.getAdGroup() != null && !serviceAccount.getAdGroup().equals("")) {
 							groupContent = String.format(mailAdGroupContent, serviceAccount.getAdGroup());
 						}
 						mailTemplateVariables.put("groupContent", groupContent);

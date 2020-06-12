@@ -30,9 +30,9 @@ public class WorkloadAppDetails implements Serializable {
 	private String appTag;
 	private String appID;
 
-	public static String APP_NAME_OTHER="Other";
-	public static String APP_TAG_OTHER="Other";
-	public static String APP_ID_OTHER="oth";
+	public static final String APP_NAME_OTHER="Other";
+	public static final String APP_TAG_OTHER="Other";
+	public static final String APP_ID_OTHER="oth";
 	/**
 	 *
 	 */

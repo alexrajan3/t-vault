@@ -1,19 +1,19 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** **************************************************************************
+*  Copyright 2019 T-Mobile, US
+*  
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*   http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*************************************************************************** */
 
 package com.tmobile.cso.vault.api.common;
 
@@ -24,6 +24,9 @@ import java.util.Map;
 import org.apache.commons.collections.bidimap.DualHashBidiMap;
 
 public class TVaultConstants {
+	
+	private TVaultConstants() {}
+	
     public static final String READ_POLICY="read";
     public static final String WRITE_POLICY="write";
     public static final String DENY_POLICY="deny";
@@ -113,7 +116,7 @@ public class TVaultConstants {
         EMAIL_TEMPLATE_IMAGE_IDS = Collections.synchronizedMap(new HashMap<String, String>());
         EMAIL_TEMPLATE_IMAGE_IDS.put("managetab", "templates/images/managetab.png");
         EMAIL_TEMPLATE_IMAGE_IDS.put("viewlink", "templates/images/viewlink.png");
-        EMAIL_TEMPLATE_IMAGE_IDS.put("update", "templates/images/update.png");
+        EMAIL_TEMPLATE_IMAGE_IDS.put(UPDATE, "templates/images/update.png");
         EMAIL_TEMPLATE_IMAGE_IDS.put("activate", "templates/images/activate.png");
         EMAIL_TEMPLATE_IMAGE_IDS.put("permission", "templates/images/permission.png");
         EMAIL_TEMPLATE_IMAGE_IDS.put("permissiontab", "templates/images/permissiontab.png");

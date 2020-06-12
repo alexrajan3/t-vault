@@ -56,6 +56,10 @@ public class  DirectoryService {
 	private String vaultAuthMethod;
 
 	private static Logger log = LogManager.getLogger(DirectoryService.class);
+	
+	public static final String DISPLAY_NAME="displayname";
+	public static final String OBJECT_CLASS="objectClass";
+	
 
 	@Autowired
 	private LdapTemplate ldapTemplate;
@@ -65,10 +69,10 @@ public class  DirectoryService {
 	 * @param UserPrincipalName
 	 * @return
 	 */
-	public ResponseEntity<DirectoryObjects> searchByUPN(String UserPrincipalName) {
+	public ResponseEntity<DirectoryObjects> searchByUPN(String userPrincipalName) {
 		AndFilter andFilter = new AndFilter();
-		andFilter.and(new LikeFilter("userPrincipalName", UserPrincipalName+"*"));
-		andFilter.and(new EqualsFilter("objectClass", "user"));
+		andFilter.and(new LikeFilter("userPrincipalName", userPrincipalName+"*"));
+		andFilter.and(new EqualsFilter(OBJECT_CLASS, "user"));
 
 		List<DirectoryUser> allPersons = getAllPersons(andFilter);
 		DirectoryObjects users = new DirectoryObjects();
@@ -86,7 +90,7 @@ public class  DirectoryService {
 	public ResponseEntity<DirectoryObjects> searchByCorpId(String corpId) {
 		AndFilter andFilter = new AndFilter();
 		andFilter.and(new LikeFilter("cn", corpId+"*"));
-		andFilter.and(new EqualsFilter("objectClass", "user"));
+		andFilter.and(new EqualsFilter(OBJECT_CLASS, "user"));
 
 		List<DirectoryUser> allPersons = getAllPersons(andFilter);
 		DirectoryObjects users = new DirectoryObjects();
@@ -103,10 +107,10 @@ public class  DirectoryService {
 	 */
 	private List<DirectoryUser> getAllPersons(Filter filter) {
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				put(LogMessage.ACTION, "GetAllUsers").
 				put(LogMessage.MESSAGE, String.format("Trying to get list of users from directory server")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		return ldapTemplate.search("", filter.encode(), new AttributesMapper<DirectoryUser>() {
 			@Override
@@ -120,11 +124,11 @@ public class  DirectoryService {
 					String userId = ((String) attr.get("name").get());
 					// Assign first part of the email id for use with UPN authentication
 					if (!StringUtils.isEmpty(mail)) {
-						userId = mail.substring(0, mail.indexOf("@"));
+						userId = mail.substring(0, mail.indexOf('@'));
 					}
 					person.setUserId(userId);
-					if (attr.get("displayname") != null) {
-						person.setDisplayName(((String) attr.get("displayname").get()));
+					if (attr.get(DISPLAY_NAME) != null) {
+						person.setDisplayName(((String) attr.get(DISPLAY_NAME).get()));
 					}
 					if (attr.get("givenname") != null) {
 						person.setGivenName(((String) attr.get("givenname").get()));
@@ -150,7 +154,7 @@ public class  DirectoryService {
 	 */
 	public ResponseEntity<DirectoryObjects> searchByGroupName(String groupName) {
 		AndFilter andFilter = new AndFilter();
-		andFilter.and(new EqualsFilter("objectClass", "group"));
+		andFilter.and(new EqualsFilter(OBJECT_CLASS, "group"));
 		andFilter.and(new LikeFilter("CN", groupName+"*"));
 		List<DirectoryGroup> allGroups = getAllGroups(andFilter);
 		DirectoryObjects groups = new DirectoryObjects();
@@ -168,10 +172,10 @@ public class  DirectoryService {
 	 */
 	private List<DirectoryGroup> getAllGroups(Filter filter) {
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				put(LogMessage.ACTION, "GetAllGroups").
 				put(LogMessage.MESSAGE, String.format("Trying to get list of groups from directory server")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		return ldapTemplate.search("", filter.encode(), new AttributesMapper<DirectoryGroup>() {
 			@Override
@@ -180,8 +184,8 @@ public class  DirectoryService {
 				if (attr.get("name") != null) {
 					dirGrp.setGroupName(((String) attr.get("name").get()));
 				}
-				if (attr.get("displayname") != null) {
-					dirGrp.setDisplayName(((String) attr.get("displayname").get()));
+				if (attr.get(DISPLAY_NAME) != null) {
+					dirGrp.setDisplayName(((String) attr.get(DISPLAY_NAME).get()));
 				}
 				if (attr.get("mail") != null) {
 					dirGrp.setEmail(((String) attr.get("mail").get()));
