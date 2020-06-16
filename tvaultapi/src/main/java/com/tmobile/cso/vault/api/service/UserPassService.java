@@ -1,19 +1,19 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 
 package com.tmobile.cso.vault.api.service;
 
@@ -50,6 +50,11 @@ public class  UserPassService {
 
 	@Value("${vault.auth.method}")
 	private String vaultAuthMethod;
+	
+	private static final String USER_LOGIN = "User Login";
+	private static final String UPDATE_PASSWRD = "Update Password";
+	private static final String DELETE_USER = "Delete User";
+	private static final String CREATE_USER = "Create User";
 	/**
 	 * To create user
 	 * @param token
@@ -59,30 +64,30 @@ public class  UserPassService {
 	public ResponseEntity<String> createUser(String token, UserpassUser user){
 		String jsonStr = JSONUtil.getJSON(user);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Create User").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, CREATE_USER).
 			      put(LogMessage.MESSAGE, "Trying to create user").
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		
 		Response response = reqProcessor.process("/auth/userpass/create", jsonStr,token);
 		if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)) {
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					  put(LogMessage.ACTION, "Create User").
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					  put(LogMessage.ACTION, CREATE_USER).
 				      put(LogMessage.MESSAGE, "Created username successfully").
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"Username User created\"]}");
 		}
 		log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Create User").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, CREATE_USER).
 			      put(LogMessage.MESSAGE, "Created username failed").
 			      put(LogMessage.RESPONSE, response.getResponse()).
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());	
 	}
@@ -94,18 +99,18 @@ public class  UserPassService {
 	 */
 	public ResponseEntity<String> readUser(String token, String username){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				  put(LogMessage.ACTION, "Read User").
 			      put(LogMessage.MESSAGE, "Trying to read user").
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/auth/userpass/read","{\"username\":\""+username+"\"}",token);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				  put(LogMessage.ACTION, "Read User").
 			      put(LogMessage.MESSAGE, "Reading username completed").
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());	
 	}
@@ -120,29 +125,29 @@ public class  UserPassService {
 		user.setUsername(username);
 		String jsonStr = JSONUtil.getJSON(user);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Delete User").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, DELETE_USER).
 			      put(LogMessage.MESSAGE, "Trying to delete user").
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/auth/userpass/delete",jsonStr,token);
 		if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)) {
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					  put(LogMessage.ACTION, "Delete User").
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					  put(LogMessage.ACTION, DELETE_USER).
 				      put(LogMessage.MESSAGE, "Username User deleted successfully").
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"Username User deleted\"]}");
 		}
 		log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Delete User").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, DELETE_USER).
 			      put(LogMessage.MESSAGE, "Username User failed").
 			      put(LogMessage.RESPONSE, response.getResponse()).
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());	
 	}
@@ -155,29 +160,29 @@ public class  UserPassService {
 	public ResponseEntity<String> updatePassword( String token, UserpassUser user){
 		String jsonStr = JSONUtil.getJSON(user);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Update Password").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, UPDATE_PASSWRD).
 			      put(LogMessage.MESSAGE, "Trying to update userpassword").
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/auth/userpass/update",jsonStr,token);
 		if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)) {
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					  put(LogMessage.ACTION, "Update Password").
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					  put(LogMessage.ACTION, UPDATE_PASSWRD).
 				      put(LogMessage.MESSAGE, "Users Password updated succssfully").
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"Password for the user updated\"]}");
 		}
 		log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Update Password").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, UPDATE_PASSWRD).
 			      put(LogMessage.MESSAGE, "Users Password failed").
 			      put(LogMessage.RESPONSE, response.getResponse()).
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());	
 	}
@@ -188,18 +193,18 @@ public class  UserPassService {
 	 */
 	public ResponseEntity<String> listUsers(String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				  put(LogMessage.ACTION, "Users Listing").
 			      put(LogMessage.MESSAGE, "Trying to list users").
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/auth/userpass/list","{}",token);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				  put(LogMessage.ACTION, "Users Listing").
 			      put(LogMessage.MESSAGE, "Users Listing Completed").
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());	
 
@@ -213,9 +218,9 @@ public class  UserPassService {
 		String jsonStr = JSONUtil.getJSON(user);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 			      put(LogMessage.USER, user.getUsername()).
-				  put(LogMessage.ACTION, "User Login").
+				  put(LogMessage.ACTION, USER_LOGIN).
 			      put(LogMessage.MESSAGE, "Trying to authenticate").
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/auth/userpass/login",jsonStr,"");
 		List<String> adminPolicies = null;
@@ -226,51 +231,51 @@ public class  UserPassService {
 		} catch (Exception e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 				      put(LogMessage.USER, user.getUsername()).
-					  put(LogMessage.ACTION, "User Login").
+					  put(LogMessage.ACTION, USER_LOGIN).
 				      put(LogMessage.MESSAGE, "Unable to retrieve the admin (sudo) policies associated with the user").
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 		}
 		if(HttpStatus.OK.equals(response.getHttpstatus())){
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 				      put(LogMessage.USER, user.getUsername()).
-					  put(LogMessage.ACTION, "User Login").
+					  put(LogMessage.ACTION, USER_LOGIN).
 				      put(LogMessage.MESSAGE, "User Authentication Successful").
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(response.getHttpstatus()).body(response.toString());
 		}else{
 			if (HttpStatus.BAD_REQUEST.equals(response.getHttpstatus())) {
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 					      put(LogMessage.USER, user.getUsername()).
-						  put(LogMessage.ACTION, "User Login").
+						  put(LogMessage.ACTION, USER_LOGIN).
 					      put(LogMessage.MESSAGE, "User Authentication failed. Invalid username or password.").
 					      put(LogMessage.RESPONSE, response.getResponse()).
 					      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-					      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					      build()));
 				return ResponseEntity.status(response.getHttpstatus()).body("{\"errors\": [\"User Authentication failed\", \"Invalid username or password. Please retry again after correcting username or password.\"]}");
 			}
 			else if (HttpStatus.INTERNAL_SERVER_ERROR.equals(response.getHttpstatus())) {
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 					      put(LogMessage.USER, user.getUsername()).
-						  put(LogMessage.ACTION, "User Login").
+						  put(LogMessage.ACTION, USER_LOGIN).
 					      put(LogMessage.MESSAGE, "User Authentication failed. Vault services could be down").
 					      put(LogMessage.RESPONSE, response.getResponse()).
 					      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-					      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					      build()));
 				return ResponseEntity.status(response.getHttpstatus()).body("{\"errors\": [\"User Authentication failed\", \"This may be due to vault services are down or vault services are not reachable\"]}");
 			}
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 				      put(LogMessage.USER, user.getUsername()).
-					  put(LogMessage.ACTION, "User Login").
+					  put(LogMessage.ACTION, USER_LOGIN).
 				      put(LogMessage.MESSAGE, "User Authentication failed.").
 				      put(LogMessage.RESPONSE, response.getResponse()).
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(response.getHttpstatus()).body("{\"errors\":[\"Username Authentication Failed.\"]}");
 		}

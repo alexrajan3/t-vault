@@ -1,19 +1,19 @@
-// =========================================================================
-// Copyright 2018 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 
 package com.tmobile.cso.vault.api.service;
 
@@ -46,6 +46,11 @@ public class  AccessService {
 	private String vaultAuthMethod;
 
 	private static Logger log = LogManager.getLogger(AccessService.class);
+	
+	private static final String CREATE_POLICY = "Create Policy";
+	private static final String UPDATE_POLICY = "Update Policy";
+	private static final String DELETE_POLICY = "Delete Policy";
+	
 	/**
 	 * Creates Vault policy
 	 * @param token
@@ -55,29 +60,29 @@ public class  AccessService {
 	public ResponseEntity<String> createPolicy(String token, AccessPolicy accessPolicy){
 		String jsonStr = JSONUtil.getJSON(accessPolicy);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Create Policy").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, CREATE_POLICY).
 			      put(LogMessage.MESSAGE, String.format("Trying to create policy [%s]", jsonStr)).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/access/create",jsonStr,token);
 		if(response.getHttpstatus().equals(HttpStatus.OK)) {
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					  put(LogMessage.ACTION, "Create Policy").
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					  put(LogMessage.ACTION, CREATE_POLICY).
 				      put(LogMessage.MESSAGE, "Policy creation completed successfully").
 				     // put(LogMessage.RESULT, response.getResponse()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"Access Policy created \"]}");
 		}
 		log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Create Policy").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, CREATE_POLICY).
 			      put(LogMessage.MESSAGE, "Policy creation failed").
 			      put(LogMessage.RESPONSE, response.getResponse()).
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());
 	}
@@ -90,29 +95,29 @@ public class  AccessService {
 	public ResponseEntity<String> updatePolicy( String token,  AccessPolicy accessPolicy){
 		String jsonStr = JSONUtil.getJSON(accessPolicy);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Update Policy").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, UPDATE_POLICY).
 			      put(LogMessage.MESSAGE, String.format("Trying to update policy [%s]", jsonStr)).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/access/update",jsonStr,token);
 		if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)) {
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					  put(LogMessage.ACTION, "Update Policy").
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					  put(LogMessage.ACTION, UPDATE_POLICY).
 				      put(LogMessage.MESSAGE, "Policy Update completed successfully").
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"Policy updated \"]}");
 		}
 		log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Update Policy").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, UPDATE_POLICY).
 			      put(LogMessage.MESSAGE, "Policy Update failed").
 			      put(LogMessage.RESPONSE, response.getResponse()).
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());
 	}
@@ -123,10 +128,10 @@ public class  AccessService {
 	 */
 	public ResponseEntity<String> listAllPolices(String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				  put(LogMessage.ACTION, "List Policies").
 			      put(LogMessage.MESSAGE, "Trying to get all policies").
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		Response response = reqProcessor.process("/access/list","{}",token);
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());
@@ -139,21 +144,21 @@ public class  AccessService {
 	 */
 	public ResponseEntity<String> getPolicyInfo(String token, String accessid){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				  put(LogMessage.ACTION, "Get Policy information").
 			      put(LogMessage.MESSAGE, String.format("Trying to get policy information for [%s]", accessid)).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		if(null == accessid || "".equals(accessid)){
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"Missing accessid \"]}");
 		}
 		Response response = reqProcessor.process("/access","{\"accessid\":\""+accessid+"\"}",token);
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				  put(LogMessage.ACTION, "Get Policy information").
 			      put(LogMessage.MESSAGE, "Getting policy information Complete").
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());
 	}
@@ -165,10 +170,10 @@ public class  AccessService {
 	 */
 	public ResponseEntity<String> deletePolicyInfo(String token, String accessid){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Delete Policy").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, DELETE_POLICY).
 			      put(LogMessage.MESSAGE, String.format("Trying to delete policy [%s]", accessid)).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		if(null == accessid || "".equals(accessid)){
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"Missing accessid \"]}");
@@ -176,21 +181,21 @@ public class  AccessService {
 		Response response = reqProcessor.process("/access/delete","{\"accessid\":\""+accessid+"\"}",token);
 		if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)) {
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					  put(LogMessage.ACTION, "Delete Policy").
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					  put(LogMessage.ACTION, DELETE_POLICY).
 				      put(LogMessage.MESSAGE, "Policy information deleted succssfully").
 				      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"Access is deleted\"]}");
 		}
 		log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				  put(LogMessage.ACTION, "Delete Policy").
+			      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				  put(LogMessage.ACTION, DELETE_POLICY).
 			      put(LogMessage.MESSAGE, "Deletion of Policy information failed").
 			      put(LogMessage.RESPONSE, response.getResponse()).
 			      put(LogMessage.STATUS, response.getHttpstatus().toString()).
-			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());
 	}

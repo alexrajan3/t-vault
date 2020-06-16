@@ -1,19 +1,19 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 
 package com.tmobile.cso.vault.api.service;
 
@@ -109,7 +109,7 @@ public class  DirectoryService {
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				put(LogMessage.ACTION, "GetAllUsers").
-				put(LogMessage.MESSAGE, String.format("Trying to get list of users from directory server")).
+				put(LogMessage.MESSAGE, "Trying to get list of users from directory server").
 				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		return ldapTemplate.search("", filter.encode(), new AttributesMapper<DirectoryUser>() {
@@ -117,32 +117,36 @@ public class  DirectoryService {
 			public DirectoryUser mapFromAttributes(Attributes attr) throws NamingException {
 				DirectoryUser person = new DirectoryUser();
 				if (attr != null) {
-					String mail = ""; 
-					if(attr.get("mail") != null) {
-						mail = ((String) attr.get("mail").get());
-					}
-					String userId = ((String) attr.get("name").get());
-					// Assign first part of the email id for use with UPN authentication
-					if (!StringUtils.isEmpty(mail)) {
-						userId = mail.substring(0, mail.indexOf('@'));
-					}
-					person.setUserId(userId);
-					if (attr.get(DISPLAY_NAME) != null) {
-						person.setDisplayName(((String) attr.get(DISPLAY_NAME).get()));
-					}
-					if (attr.get("givenname") != null) {
-						person.setGivenName(((String) attr.get("givenname").get()));
-					}
-
-					if (attr.get("mail") != null) {
-						person.setUserEmail(((String) attr.get("mail").get()));
-					}
-
-					if (attr.get("name") != null) {
-						person.setUserName(((String) attr.get("name").get()));
-					}
+					createDirectoryUser(attr, person);
 				}
 				return person;
+			}
+
+			private void createDirectoryUser(Attributes attr, DirectoryUser person) throws NamingException {
+				String mail = ""; 
+				if(attr.get("mail") != null) {
+					mail = ((String) attr.get("mail").get());
+				}
+				String userId = ((String) attr.get("name").get());
+				// Assign first part of the email id for use with UPN authentication
+				if (!StringUtils.isEmpty(mail)) {
+					userId = mail.substring(0, mail.indexOf('@'));
+				}
+				person.setUserId(userId);
+				if (attr.get(DISPLAY_NAME) != null) {
+					person.setDisplayName(((String) attr.get(DISPLAY_NAME).get()));
+				}
+				if (attr.get("givenname") != null) {
+					person.setGivenName(((String) attr.get("givenname").get()));
+				}
+
+				if (attr.get("mail") != null) {
+					person.setUserEmail(((String) attr.get("mail").get()));
+				}
+
+				if (attr.get("name") != null) {
+					person.setUserName(((String) attr.get("name").get()));
+				}
 			}
 		});
 	}
@@ -174,7 +178,7 @@ public class  DirectoryService {
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
 				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				put(LogMessage.ACTION, "GetAllGroups").
-				put(LogMessage.MESSAGE, String.format("Trying to get list of groups from directory server")).
+				put(LogMessage.MESSAGE, "Trying to get list of groups from directory server").
 				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		return ldapTemplate.search("", filter.encode(), new AttributesMapper<DirectoryGroup>() {

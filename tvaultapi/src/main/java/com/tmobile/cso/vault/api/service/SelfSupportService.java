@@ -1,19 +1,19 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 
 package com.tmobile.cso.vault.api.service;
 
@@ -25,8 +25,6 @@ import java.util.Map;
 
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -82,8 +80,9 @@ public class  SelfSupportService {
 
 	@Value("${safe.quota:20}")
 	private String safeQuota;
-
-	private static Logger log = LogManager.getLogger(SelfSupportService.class);
+	
+	private static final String ERROR_INVALID_PATH_STRING = "{\"errors\":[\"Invalid path specified\"]}";
+	private static final String ERROR_USER_PERMISSION_STRING = "{\"errors\":[\"Error checking user permission\"]}";
 
 	/**
 	 * Creates a safe by the user with least privileges, Requires an AppRole which can perform Safe Creation 
@@ -112,11 +111,11 @@ public class  SelfSupportService {
 			if (isSafeQuotaReached(token, userDetails.getUsername(), ControllerUtil.getSafeType(safe.getPath()))) {
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"You have reached the limit of number of allowed safes that can be created\"]}");
 			}
-			if (safe != null && safe.getSafeBasicDetails() != null) {
+			if (safe.getSafeBasicDetails() != null) {
 				safe.getSafeBasicDetails().setOwnerid(userDetails.getUsername());
 			}
-			ResponseEntity<String> safe_creation_response = safesService.createSafe(token, safe);
-			if (HttpStatus.OK.equals(safe_creation_response.getStatusCode() )) {
+			ResponseEntity<String> safeCreationResponse = safesService.createSafe(token, safe);
+			if (HttpStatus.OK.equals(safeCreationResponse.getStatusCode() )) {
 				// Associate admin user to the safe...
 				SafeUser safeUser = new SafeUser();
 				safeUser.setAccess(TVaultConstants.SUDO_POLICY);
@@ -124,7 +123,7 @@ public class  SelfSupportService {
 				safeUser.setUsername(userDetails.getUsername());
 				safesService.addUserToSafe(token, safeUser, null);
 			}
-			return safe_creation_response;
+			return safeCreationResponse;
 		}
 	}
 
@@ -189,7 +188,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to get this safe info\"]}");
@@ -213,7 +212,7 @@ public class  SelfSupportService {
 			String safeType = ControllerUtil.getSafeType(path);
 			String safeName = ControllerUtil.getSafeName(path);
 			if (StringUtils.isEmpty(safeType) || StringUtils.isEmpty(safeName)) {
-				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"Invalid path specified\"]}");
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ERROR_INVALID_PATH_STRING);
 			}
 			String powerToken = userDetails.getSelfSupportToken();
 			String username = userDetails.getUsername();
@@ -265,7 +264,7 @@ public class  SelfSupportService {
 			// List of safes based on current user
 			String[] policies = policyUtils.getCurrentPolicies(userDetails.getSelfSupportToken(), userDetails.getUsername());
 			String[] safes = safeUtils.getManagedSafes(policies, path);
-			Map<String, String[]> safesMap = new HashMap<String, String[]>();
+			Map<String, String[]> safesMap = new HashMap<>();
 			safesMap.put("keys", safes);
 			return ResponseEntity.status(HttpStatus.OK).body(JSONUtil.getJSON(safesMap));
 		}
@@ -278,12 +277,12 @@ public class  SelfSupportService {
 	 */
 	public ResponseEntity<String> isAuthorized (UserDetails userDetails, String path) {
 		if (!ControllerUtil.isPathValid(path)) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"Invalid path specified\"]}");
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ERROR_INVALID_PATH_STRING);
 		}
 		String safeType = ControllerUtil.getSafeType(path);
 		String safeName = ControllerUtil.getSafeName(path);
 		if (StringUtils.isEmpty(safeType) || StringUtils.isEmpty(safeName)) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"errors\":[\"Invalid path specified\"]}");
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ERROR_INVALID_PATH_STRING);
 		}
 		String powerToken = userDetails.getSelfSupportToken();
 		String username = userDetails.getUsername();
@@ -312,14 +311,13 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, safe.getPath());
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to update this safe\"]}");
 			}
 			token = userDetails.getSelfSupportToken();
-			ResponseEntity<String> safe_creation_response = safesService.updateSafe(token, safe);
-			return safe_creation_response;
+			return safesService.updateSafe(token, safe);
 		}
 	}
 	/**
@@ -338,14 +336,14 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to delete this safe\"]}");
 			}
 			token = userDetails.getSelfSupportToken();
-			ResponseEntity<String> safe_creation_response = safesService.deletefolder(token, path);
-			return safe_creation_response;
+			
+			return safesService.deletefolder(token, path);
 		}
 	}
 	/**
@@ -363,7 +361,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, safeGroup.getPath());
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to add group to the safe\"]}");
@@ -387,7 +385,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, safeGroup.getPath());
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to remove group from the safe\"]}");
@@ -412,7 +410,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, awsRole.getPath());
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to add AWS role to the safe\"]}");
@@ -438,7 +436,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, awsRole.getPath());
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to remove AWS role from the safe\"]}");
@@ -469,7 +467,7 @@ public class  SelfSupportService {
 			String path = requestMap.get("path").toString();
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to add Approle to the safe\"]}");
@@ -503,7 +501,7 @@ public class  SelfSupportService {
 			String path = requestMap.get("path").toString();
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to remove approle from the safe\"]}");
@@ -530,7 +528,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to create AWS role\"]}");
@@ -557,7 +555,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to update AWS role\"]}");
@@ -584,7 +582,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to create AWS IAM role\"]}");
@@ -611,7 +609,7 @@ public class  SelfSupportService {
 		else {
 			ResponseEntity<String> isAuthorized = isAuthorized(userDetails, path);
 			if (!isAuthorized.getStatusCode().equals(HttpStatus.OK)) {
-				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"Error checking user permission\"]}");
+				return isAuthorized.getStatusCode().equals(HttpStatus.BAD_REQUEST)?isAuthorized:ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ERROR_USER_PERMISSION_STRING);
 			}
 			if (isAuthorized.getBody().equals(TVaultConstants.FALSE)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"errors\":[\"Access denied: no permission to update AWS IAM role\"]}");
@@ -691,36 +689,42 @@ public class  SelfSupportService {
 		if (policies != null) {
 			for (String policy: policies) {
 				Map<String, String> safePolicy = new HashMap<>();
-				String[] _policies = policy.split("_", -1);
-				if (_policies.length >= 3) {
-					String[] policyName = Arrays.copyOfRange(_policies, 2, _policies.length);
-					String safeName = String.join("_", policyName);
-					String safeType = _policies[1];
-
-					if (policy.startsWith("r_")) {
-						safePolicy.put(safeName, "read");
-					} else if (policy.startsWith("w_")) {
-						safePolicy.put(safeName, "write");
-					}
-					else if (policy.startsWith("d_")) {
-						safePolicy.put(safeName, "deny");
-					}
-					if (!safePolicy.isEmpty()) {
-						if (safeType.equals(TVaultConstants.USERS)) {
-							safeListUsers.add(safePolicy);
-						} else if (safeType.equals(TVaultConstants.SHARED)) {
-							safeListShared.add(safePolicy);
-						} else if (safeType.equals(TVaultConstants.APPS)) {
-							safeListApps.add(safePolicy);
-						}
-					}
-				}
+				String[] policiesArray = policy.split("_", -1);
+				processSafeList(safeListUsers, safeListShared, safeListApps, policy, safePolicy, policiesArray);
 			}
 			safeList.put(TVaultConstants.USERS, safeListUsers);
 			safeList.put(TVaultConstants.SHARED, safeListShared);
 			safeList.put(TVaultConstants.APPS, safeListApps);
 		}
 		return ResponseEntity.status(HttpStatus.OK).body(JSONUtil.getJSON(safeList));
+	}
+
+	private void processSafeList(List<Map<String, String>> safeListUsers, List<Map<String, String>> safeListShared,
+			List<Map<String, String>> safeListApps, String policy, Map<String, String> safePolicy,
+			String[] policiesArray) {
+		if (policiesArray.length >= 3) {
+			String[] policyName = Arrays.copyOfRange(policiesArray, 2, policiesArray.length);
+			String safeName = String.join("_", policyName);
+			String safeType = policiesArray[1];
+
+			if (policy.startsWith("r_")) {
+				safePolicy.put(safeName, "read");
+			} else if (policy.startsWith("w_")) {
+				safePolicy.put(safeName, "write");
+			}
+			else if (policy.startsWith("d_")) {
+				safePolicy.put(safeName, "deny");
+			}
+			if (!safePolicy.isEmpty()) {
+				if (safeType.equals(TVaultConstants.USERS)) {
+					safeListUsers.add(safePolicy);
+				} else if (safeType.equals(TVaultConstants.SHARED)) {
+					safeListShared.add(safePolicy);
+				} else if (safeType.equals(TVaultConstants.APPS)) {
+					safeListApps.add(safePolicy);
+				}
+			}
+		}
 	}
 
 	/**

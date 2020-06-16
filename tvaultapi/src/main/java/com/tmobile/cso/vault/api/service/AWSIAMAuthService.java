@@ -1,19 +1,19 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 
 package com.tmobile.cso.vault.api.service;
 
@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import com.tmobile.cso.vault.api.exception.LogMessage;
 import com.tmobile.cso.vault.api.model.*;
 import com.tmobile.cso.vault.api.utils.ThreadLocalContext;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +58,9 @@ public class AWSIAMAuthService {
 	private String vaultAuthMethod;
 
 	private static Logger logger = LogManager.getLogger(AWSIAMAuthService.class);
+	
+	private static final String POLICIES = "policies";
+	private static final String ROLE_STRING = "{\"role\":\"";
 
 	/**
 	 * Registers a role in the method.
@@ -68,7 +70,6 @@ public class AWSIAMAuthService {
 	 */
 	public ResponseEntity<String> createIAMRole(AWSIAMRole awsiamRole, String token, UserDetails userDetails) throws TVaultValidationException{
 		if (!ControllerUtil.areAWSIAMRoleInputsValid(awsiamRole)) {
-			//return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid inputs for the given aws login type");
 			throw new TVaultValidationException("Invalid inputs for the given aws login type");
 		}
 		String jsonStr = JSONUtil.getJSON(awsiamRole);
@@ -79,7 +80,7 @@ public class AWSIAMAuthService {
 				return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"AWS IAM Role created successfully \"]}");
 			}
 			// revert role creation
-			Response deleteResponse = reqProcessor.process("/auth/aws/iam/roles/delete","{\"role\":\""+awsiamRole.getRole()+"\"}",token);
+			Response deleteResponse = reqProcessor.process("/auth/aws/iam/roles/delete",ROLE_STRING+awsiamRole.getRole()+"\"}",token);
 			if (deleteResponse.getHttpstatus().equals(HttpStatus.NO_CONTENT)) {
 				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("{\"errors\":[\"AWS IAM role creation failed.\"]}");
 			}
@@ -100,7 +101,6 @@ public class AWSIAMAuthService {
 	 */
 	public ResponseEntity<String> updateIAMRole(String token, AWSIAMRole awsiamRole) throws TVaultValidationException{
 		if (!ControllerUtil.areAWSIAMRoleInputsValid(awsiamRole)) {
-			//return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid inputs for the given aws login type");
 			throw new TVaultValidationException("Invalid inputs for the given aws login type");
 		}
 		String jsonStr = JSONUtil.getJSON(awsiamRole);
@@ -112,19 +112,18 @@ public class AWSIAMAuthService {
 		try {
 			JsonNode root = objMapper.readTree(jsonStr);
 			roleName = root.get("role").asText();
-			if(root.get("policies") != null)
-				latestPolicies = root.get("policies").asText();
+			if(root.get(POLICIES) != null)
+				latestPolicies = root.get(POLICIES).asText();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			logger.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "Update IAM role").
 					put(LogMessage.MESSAGE, String.format("Failed to extract role/policies from json string [%s]", jsonStr)).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 
-		Response awsResponse = reqProcessor.process("/auth/aws/iam/roles","{\"role\":\""+roleName+"\"}",token);
+		Response awsResponse = reqProcessor.process("/auth/aws/iam/roles",ROLE_STRING+roleName+"\"}",token);
 		String responseJson="";	
 
 		if(HttpStatus.OK.equals(awsResponse.getHttpstatus())){
@@ -133,16 +132,15 @@ public class AWSIAMAuthService {
 				Map<String,Object> responseMap; 
 				responseMap = objMapper.readValue(responseJson, new TypeReference<Map<String, Object>>(){});
 				@SuppressWarnings("unchecked")
-				List<String> policies  = (List<String>) responseMap.get("policies");
-				currentPolicies = policies.stream().collect(Collectors.joining(",")).toString();
+				List<String> policies  = (List<String>) responseMap.get(POLICIES);
+				currentPolicies = policies.stream().collect(Collectors.joining(","));
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				logger.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 						put(LogMessage.ACTION, "Update IAM role").
 						put(LogMessage.MESSAGE, "Failed to extract from IAM read response").
 						put(LogMessage.RESPONSE, awsResponse.getResponse()).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 			}
 		}else{
@@ -171,7 +169,7 @@ public class AWSIAMAuthService {
 	 * @return
 	 */
 	public ResponseEntity<String> fetchIAMRole(String token, String role){
-		String jsoninput= "{\"role\":\""+role+"\"}";
+		String jsoninput= ROLE_STRING+role+"\"}";
 		Response response = reqProcessor.process("/auth/aws/iam/roles",jsoninput,token);
 		return ResponseEntity.status(response.getHttpstatus()).body(response.getResponse());	
 	}
@@ -193,7 +191,7 @@ public class AWSIAMAuthService {
 	 */
 	public ResponseEntity<String> deleteIAMRole(String token, String role){
 
-		Response response = reqProcessor.process("/auth/aws/iam/roles/delete","{\"role\":\""+role+"\"}",token);
+		Response response = reqProcessor.process("/auth/aws/iam/roles/delete",ROLE_STRING+role+"\"}",token);
 		if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)){
 			return ResponseEntity.status(HttpStatus.OK).body("{\"messages\":[\"IAM Role deleted \"]}");
 		}else{
@@ -210,18 +208,18 @@ public class AWSIAMAuthService {
 	 */
 	public Response configureAWSIAMRole(String roleName,String policies,String token ){
 		ObjectMapper objMapper = new ObjectMapper();
-		Map<String,String>configureRoleMap = new HashMap<String,String>();
+		Map<String,String>configureRoleMap = new HashMap<>();
 		configureRoleMap.put("role", roleName);
-		configureRoleMap.put("policies", policies);
+		configureRoleMap.put(POLICIES, policies);
 		String awsConfigJson ="";
 		try {
 			awsConfigJson = objMapper.writeValueAsString(configureRoleMap);
 		} catch (JsonProcessingException e) {
 			logger.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "configureAWSIAMRole").
 					put(LogMessage.MESSAGE, String.format ("Unable to create awsConfigJson with message [%s] for roleName [%s] policies [%s] ", e.getMessage(), roleName, policies)).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 		return reqProcessor.process("/auth/aws/iam/roles/update",awsConfigJson,token);
