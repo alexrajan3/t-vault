@@ -2075,7 +2075,7 @@ public final class ControllerUtil {
      * @return
      */
     public static  String populateUserMetaJson(String appRoleName, String username) {
-        String _path = TVaultConstants.APPROLE_USERS_METADATA_MOUNT_PATH + "/" + username +"/" + appRoleName;
+        String _path = TVaultConstants.APPROLE_USERS_METADATA_MOUNT_PATH + '/' + username +'/' + appRoleName;
         AppRoleMetadataDetails appRoleMetadataDetails = new AppRoleMetadataDetails(appRoleName);
         appRoleMetadataDetails.setCreatedBy(username);
         AppRoleMetadata appRoleMetadata =  new AppRoleMetadata(_path, appRoleMetadataDetails);

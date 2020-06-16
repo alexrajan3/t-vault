@@ -270,7 +270,7 @@ public class  AppRoleService {
 			      put(LogMessage.MESSAGE, "Trying to get list of AppRole").
 			      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 			      build()));
-		String appRoleUsersMetadataPath = TVaultConstants.APPROLE_USERS_METADATA_MOUNT_PATH + userDetails.getUsername();
+		String appRoleUsersMetadataPath = TVaultConstants.APPROLE_USERS_METADATA_MOUNT_PATH + '/' + userDetails.getUsername();
 		Response response = null;
 		if (userDetails.isAdmin()) {
 			response = reqProcessor.process("/auth/approle/role/list",PATH_STRING+appRoleUsersMetadataPath+"\"}",token);

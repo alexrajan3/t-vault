@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.tmobile.cso.vault.api.v2.controller.AWSAuthControllerV2Test
+-------------------------------------------------------------------------------
+Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 21.812 sec - in com.tmobile.cso.vault.api.v2.controller.AWSAuthControllerV2Test
