@@ -1,24 +1,27 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 
 package com.tmobile.cso.vault.api.controller;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
@@ -40,11 +43,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
@@ -86,24 +86,43 @@ public final class ControllerUtil {
 	
 	@Value("${selfservice.ssfilelocation}")
     private String sscredLocation;
-	private static String sscredFileLocation;
 
 	private static String ssUsername;
 	private static String ssPassword;
 	private static SSCred sscred = null;
+	
+	private static final String RECURSIVE_DELETE_MSG = "recursivedeletesdb";
+	private static final String UNEXPECTED_ERROR_STRING = "{\"errors\":[\"Unexpected error :";
+	private static final String SDB_LIST = "/sdb/list";
+	private static final String PATH_STRING = "{\"path\":\"";
+	private static final String READ_SECRETS = "/read";
+	private static final String USERNAME_STR = "username";
+	private static final String POLICIES_STR = "policies";
+	private static final String UPDATE_METADATA_STR = "updateMetadata";
+	private static final String ACCESS_STR = "access";
+	private static final String METADATA_STR = "metadata/";
+	private static final String DATA_STRING = "\",\"data\":";
+	private static final String WRITE_SECRETS = "/write";
+	private static final String UPDATE_USER_POLICY_STR = "updateUserPolicyAssociationOnSDBDelete";
+	private static final String UPDATE_AWS_ROLE_POLICY_STR = "updateAwsRolePolicyAssociationOnSDBDelete";
+	private static final String DELETE_AWS_ROLE_SDB_STR = "deleteAwsRoleOnSDBDelete";
+	private static final String FAILED_LOWERCASE_CONVERSION_MSG = "Failed to convert [%s] to lowercase.";
+	private static final String ROLE_REQUIRED_STR = "Role is required.";
+	private static final String USERNAME_SSCRED_STR = "username:";
+	private static final String PASSWRD_SSCRED_STR = "password:";
+	
 
 	@PostConstruct     
 	private void initStatic () {
 		vaultAuthMethod = this.tvaultAuthMethod;
 		secretKeyAllowedCharacters = this.secretKeyWhitelistedCharacters;
 		approleAllowedCharacters = this.approleWhitelistedCharacters;
-		sdbNameAllowedCharacters = this.sdbNameWhitelistedCharacters;
-		sscredFileLocation = this.sscredLocation;
-		readSSCredFile(sscredFileLocation, true);
+		sdbNameAllowedCharacters = this.sdbNameWhitelistedCharacters;		
+		readSSCredFile(this.sscredLocation, true);
 	}
 
 	@Autowired(required = true)
-	public void setreqProcessor(RequestProcessor reqProcessor) {
+	public void setReqProcessor(RequestProcessor reqProcessor) {
 		ControllerUtil.reqProcessor = reqProcessor;
 	}
 
@@ -117,10 +136,10 @@ public final class ControllerUtil {
 
 	public static void recursivedeletesdb(String jsonstr,String token,  Response responseVO){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				put(LogMessage.ACTION, "recursivedeletesdb").
-				put(LogMessage.MESSAGE, String.format ("Trying recursive delete...")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				put(LogMessage.ACTION, RECURSIVE_DELETE_MSG).
+				put(LogMessage.MESSAGE, "Trying recursive delete...").
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		ObjectMapper objMapper =  new ObjectMapper();
 		String path = TVaultConstants.EMPTY;
@@ -129,44 +148,43 @@ public final class ControllerUtil {
 		} catch (IOException e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					put(LogMessage.ACTION, "recursivedeletesdb").
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					put(LogMessage.ACTION, RECURSIVE_DELETE_MSG).
 					put(LogMessage.MESSAGE, String.format ("recursivedeletesdb failed for [%s]", e.getMessage())).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 			responseVO.setSuccess(false);
 			responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
-			responseVO.setResponse("{\"errors\":[\"Unexpected error :"+e.getMessage() +"\"]}");
+			responseVO.setResponse(UNEXPECTED_ERROR_STRING+e.getMessage() +"\"]}");
 		}
 		
-		Response lisresp = reqProcessor.process("/sdb/list",jsonstr,token);
+		Response lisresp = reqProcessor.process(SDB_LIST,jsonstr,token);
 		if(HttpStatus.NOT_FOUND.equals(lisresp.getHttpstatus())){
 			Response resp = reqProcessor.process("/delete",jsonstr,token);
 			responseVO.setResponse(resp.getResponse());
 			responseVO.setHttpstatus(resp.getHttpstatus());
 		}else if ( HttpStatus.FORBIDDEN.equals(lisresp.getHttpstatus())){
 			responseVO.setResponse(lisresp.getResponse());
-			responseVO.setHttpstatus(lisresp.getHttpstatus());
-			return;
+			responseVO.setHttpstatus(lisresp.getHttpstatus());			
 		}else{
 			try {
 				 JsonNode folders = objMapper.readTree(lisresp.getResponse()).get("keys");
 				 for(JsonNode node : folders){
-					recursivedeletesdb ("{\"path\":\""+path+"/"+node.asText()+"\"}" ,token,responseVO);
+					recursivedeletesdb (PATH_STRING+path+"/"+node.asText()+"\"}" ,token,responseVO);
 				 }
 			} catch (IOException e) {
 				log.error(e);
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-						put(LogMessage.ACTION, "recursivedeletesdb").
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+						put(LogMessage.ACTION, RECURSIVE_DELETE_MSG).
 						put(LogMessage.MESSAGE, String.format ("recursivedeletesdb failed for [%s]", e.getMessage())).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 				responseVO.setSuccess(false);
 				responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
-				responseVO.setResponse("{\"errors\":[\"Unexpected error :"+e.getMessage() +"\"]}");
+				responseVO.setResponse(UNEXPECTED_ERROR_STRING+e.getMessage() +"\"]}");
 			}
-			recursivedeletesdb ("{\"path\":\""+path+"\"}" ,token,responseVO);
+			recursivedeletesdb (PATH_STRING+path+"\"}" ,token,responseVO);
 		}
 	}
 	
@@ -185,14 +203,14 @@ public final class ControllerUtil {
 		} catch (IOException e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "getPath").
 					put(LogMessage.MESSAGE, String.format ("getPath failed for [%s]", e.getMessage())).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 			responseVO.setSuccess(false);
 			responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
-			responseVO.setResponse("{\"errors\":[\"Unexpected error :"+e.getMessage() +"\"]}");
+			responseVO.setResponse(UNEXPECTED_ERROR_STRING+e.getMessage() +"\"]}");
 		}
 		return path;
 	}
@@ -209,7 +227,7 @@ public final class ControllerUtil {
 		ObjectMapper objMapper =  new ObjectMapper();
 		String path = getPath(objMapper, jsonstr, responseVO);
 		/* Read the secrets for the given path */
-		Response secresp = reqProcessor.process("/read",jsonstr,token);
+		Response secresp = reqProcessor.process(READ_SECRETS,jsonstr,token);
 		if (HttpStatus.OK.equals(secresp.getHttpstatus())) {
 			responseVO.setResponse(secresp.getResponse());
 			responseVO.setHttpstatus(secresp.getHttpstatus());
@@ -226,57 +244,61 @@ public final class ControllerUtil {
 			}
 		}
 		/* Read the folders for the given path */
-		Response lisresp = reqProcessor.process("/sdb/list",jsonstr,token);
+		Response lisresp = reqProcessor.process(SDB_LIST,jsonstr,token);
 		if(HttpStatus.NOT_FOUND.equals(lisresp.getHttpstatus())){
-			Response resp = reqProcessor.process("/read",jsonstr,token);
+			Response resp = reqProcessor.process(READ_SECRETS,jsonstr,token);
 			responseVO.setResponse(resp.getResponse());
-			responseVO.setHttpstatus(resp.getHttpstatus());
-			return;
+			responseVO.setHttpstatus(resp.getHttpstatus());			
 		}else if ( HttpStatus.FORBIDDEN.equals(lisresp.getHttpstatus())){
 			responseVO.setResponse(lisresp.getResponse());
-			responseVO.setHttpstatus(lisresp.getHttpstatus());
-			return;
+			responseVO.setHttpstatus(lisresp.getHttpstatus());			
 		}else{
 			if (!lisresp.getResponse().contains("errors")) {
-				try {
-					JsonNode folders = objMapper.readTree(lisresp.getResponse()).get("keys");
-					for(JsonNode node : folders){
-						jsonstr = "{\"path\":\""+path+"/"+node.asText()+"\"}";
-						SafeNode sn = new SafeNode();
-						sn.setId(path+"/"+node.asText());
-						sn.setValue(path+"/"+node.asText());
-						sn.setType(TVaultConstants.FOLDER);
-						sn.setParentId(safeNode.getId());
-						safeNode.addChild(sn);
-						/* Recursively read the folders for the given folder/sub folders */
-						recursiveRead ( jsonstr,token,responseVO, sn);
-					}
-
-				} catch (IOException e) {
-					log.error(e);
-					log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "recursiveRead").
-							put(LogMessage.MESSAGE, String.format ("recursiveRead failed for [%s]", e.getMessage())).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-							build()));
-					responseVO.setSuccess(false);
-					responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
-					responseVO.setResponse("{\"errors\":[\"Unexpected error :"+e.getMessage() +"\"]}");
-				}
+				readFoldersByPath(token, responseVO, safeNode, objMapper, path, lisresp);
 			}
 			else {
 				log.error("Unable to recursively read the given path " + jsonstr);
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 						put(LogMessage.ACTION, "recursiveRead").
-						put(LogMessage.MESSAGE, String.format ("Unable to recursively read the given path")).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.MESSAGE, "Unable to recursively read the given path").
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 				responseVO.setSuccess(false);
 				responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
 				responseVO.setResponse("{\"errors\":[\"Unable to recursively read the given path :"+jsonstr +"\"]}");
 			}
+		}
+	}
+
+	private static void readFoldersByPath(String token, Response responseVO, SafeNode safeNode, ObjectMapper objMapper,
+			String path, Response lisresp) {
+		String jsonstr;
+		try {
+			JsonNode folders = objMapper.readTree(lisresp.getResponse()).get("keys");
+			for(JsonNode node : folders){
+				jsonstr = PATH_STRING+path+"/"+node.asText()+"\"}";
+				SafeNode sn = new SafeNode();
+				sn.setId(path+"/"+node.asText());
+				sn.setValue(path+"/"+node.asText());
+				sn.setType(TVaultConstants.FOLDER);
+				sn.setParentId(safeNode.getId());
+				safeNode.addChild(sn);
+				/* Recursively read the folders for the given folder/sub folders */
+				recursiveRead ( jsonstr,token,responseVO, sn);
+			}
+
+		} catch (IOException e) {
+			log.error(e);
+			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					put(LogMessage.ACTION, "recursiveRead").
+					put(LogMessage.MESSAGE, String.format ("recursiveRead failed for [%s]", e.getMessage())).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+					build()));
+			responseVO.setSuccess(false);
+			responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
+			responseVO.setResponse(UNEXPECTED_ERROR_STRING+e.getMessage() +"\"]}");
 		}
 	}
 
@@ -291,10 +313,49 @@ public final class ControllerUtil {
 		ObjectMapper objMapper =  new ObjectMapper();
 		String path = getPath(objMapper, jsonstr, responseVO);
 		/* Read the secrets for the given path */
-		Response secresp = reqProcessor.process("/read",jsonstr,token);
+		Response secresp = reqProcessor.process(READ_SECRETS,jsonstr,token);
 		responseVO.setResponse(secresp.getResponse());
 		responseVO.setHttpstatus(secresp.getHttpstatus());
 		boolean secretsExist = false;
+		secretsExist = readSecretsByPath(safeNode, path, secresp, secretsExist);
+
+		/* Read the folders for the given path */
+		Response lisresp = reqProcessor.process(SDB_LIST,jsonstr,token);
+		if(HttpStatus.NOT_FOUND.equals(lisresp.getHttpstatus())){
+			if (!secretsExist) {
+				// No secrets and no folders
+				if (TVaultConstants.SAFE.equals(safeNode.getType())) {
+					responseVO.setResponse(TVaultConstants.EMPTY_JSON);
+					responseVO.setHttpstatus(HttpStatus.OK);
+				}
+				else {
+					responseVO.setResponse(lisresp.getResponse());
+					responseVO.setHttpstatus(lisresp.getHttpstatus());
+				}
+			}			
+		}else if ( HttpStatus.FORBIDDEN.equals(lisresp.getHttpstatus())){
+			responseVO.setResponse(lisresp.getResponse());
+			responseVO.setHttpstatus(lisresp.getHttpstatus());			
+		}else{
+			if (!lisresp.getResponse().contains("errors")) {
+				readFolderAndSetSafeNode(responseVO, safeNode, objMapper, path, lisresp);
+			}
+			else {
+				log.error("Unable to read the given path " + jsonstr);
+				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+						put(LogMessage.ACTION, "getFoldersAndSecrets").
+						put(LogMessage.MESSAGE, String.format ("Unable to read the given path [%s]",jsonstr)).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+						build()));
+				responseVO.setSuccess(false);
+				responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
+				responseVO.setResponse("{\"errors\":[\"Unable to read the given path :"+jsonstr +"\"]}");
+			}
+		}
+	}
+
+	private static boolean readSecretsByPath(SafeNode safeNode, String path, Response secresp, boolean secretsExist) {
 		if (HttpStatus.OK.equals(secresp.getHttpstatus())) {
 			SafeNode sn = new SafeNode();
 			sn.setId(path);
@@ -309,80 +370,49 @@ public final class ControllerUtil {
 				safeNode.setValue(secresp.getResponse());
 			}
 		}
+		return secretsExist;
+	}
 
-		/* Read the folders for the given path */
-		Response lisresp = reqProcessor.process("/sdb/list",jsonstr,token);
-		if(HttpStatus.NOT_FOUND.equals(lisresp.getHttpstatus())){
-			if (!secretsExist) {
-				// No secrets and no folders
-				if (TVaultConstants.SAFE.equals(safeNode.getType())) {
-					responseVO.setResponse(TVaultConstants.EMPTY_JSON);
-					responseVO.setHttpstatus(HttpStatus.OK);
-				}
-				else {
-					responseVO.setResponse(lisresp.getResponse());
-					responseVO.setHttpstatus(lisresp.getHttpstatus());
-				}
+	private static void readFolderAndSetSafeNode(Response responseVO, SafeNode safeNode, ObjectMapper objMapper,
+			String path, Response lisresp) {
+		try {
+			JsonNode folders = objMapper.readTree(lisresp.getResponse()).get("keys");
+			for(JsonNode node : folders){						
+				SafeNode sn = new SafeNode();
+				sn.setId(path+"/"+node.asText());
+				sn.setValue(path+"/"+node.asText());
+				sn.setType(TVaultConstants.FOLDER);
+				sn.setParentId(safeNode.getId());
+				safeNode.addChild(sn);
 			}
-			return;
-		}else if ( HttpStatus.FORBIDDEN.equals(lisresp.getHttpstatus())){
-			responseVO.setResponse(lisresp.getResponse());
-			responseVO.setHttpstatus(lisresp.getHttpstatus());
-			return;
-		}else{
-			if (!lisresp.getResponse().contains("errors")) {
-				try {
-					JsonNode folders = objMapper.readTree(lisresp.getResponse()).get("keys");
-					for(JsonNode node : folders){
-						jsonstr = "{\"path\":\""+path+"/"+node.asText()+"\"}";
-						SafeNode sn = new SafeNode();
-						sn.setId(path+"/"+node.asText());
-						sn.setValue(path+"/"+node.asText());
-						sn.setType(TVaultConstants.FOLDER);
-						sn.setParentId(safeNode.getId());
-						safeNode.addChild(sn);
-					}
-					responseVO.setSuccess(true);
-					responseVO.setHttpstatus(HttpStatus.OK);
+			responseVO.setSuccess(true);
+			responseVO.setHttpstatus(HttpStatus.OK);
 
-				} catch (IOException e) {
-					log.error(e);
-					log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "getFoldersAndSecrets").
-							put(LogMessage.MESSAGE, String.format ("Unable to getFoldersAndSecrets [%s]", e.getMessage())).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-							build()));
-					responseVO.setSuccess(false);
-					responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
-					responseVO.setResponse("{\"errors\":[\"Unexpected error :"+e.getMessage() +"\"]}");
-				}
-			}
-			else {
-				log.error("Unable to read the given path " + jsonstr);
-				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-						put(LogMessage.ACTION, "getFoldersAndSecrets").
-						put(LogMessage.MESSAGE, String.format ("Unable to read the given path [%s]",jsonstr)).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-						build()));
-				responseVO.setSuccess(false);
-				responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
-				responseVO.setResponse("{\"errors\":[\"Unable to read the given path :"+jsonstr +"\"]}");
-			}
+		} catch (IOException e) {
+			log.error(e);
+			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					put(LogMessage.ACTION, "getFoldersAndSecrets").
+					put(LogMessage.MESSAGE, String.format ("Unable to getFoldersAndSecrets [%s]", e.getMessage())).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+					build()));
+			responseVO.setSuccess(false);
+			responseVO.setHttpstatus(HttpStatus.INTERNAL_SERVER_ERROR);
+			responseVO.setResponse(UNEXPECTED_ERROR_STRING+e.getMessage() +"\"]}");
 		}
 	}
+	
 	public static Response configureLDAPUser(String userName,String policies,String groups,String token ){
 		log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				put(LogMessage.ACTION, "configureLDAPUser").
 				put(LogMessage.MESSAGE, String.format ("Trying configureLDAPUse with username [%s] policies [%s] and groups [%s] ", userName, policies, groups)).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		ObjectMapper objMapper = new ObjectMapper();
-		Map<String,String>configureUserMap = new HashMap<String,String>();
-		configureUserMap.put("username", userName);
-		configureUserMap.put("policies", policies);
+		Map<String,String>configureUserMap = new HashMap<>();
+		configureUserMap.put(USERNAME_STR, userName);
+		configureUserMap.put(POLICIES_STR, policies);
 		configureUserMap.put("groups", groups);
 		String ldapUserConfigJson ="";
 		try {
@@ -390,10 +420,10 @@ public final class ControllerUtil {
 		} catch (JsonProcessingException e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "configureLDAPUser").
 					put(LogMessage.MESSAGE, String.format ("Unable to create ldapUserConfigJson [%s] with username [%s] policies [%s] and groups [%s] ", e.getMessage(), userName, policies, groups)).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 		return reqProcessor.process("/auth/ldap/users/configure",ldapUserConfigJson,token);
@@ -401,39 +431,40 @@ public final class ControllerUtil {
 
 	public static Response configureUserpassUser(String userName,String policies,String token ){
 		ObjectMapper objMapper = new ObjectMapper();
-		Map<String,String>configureUserMap = new HashMap<String,String>();
-		configureUserMap.put("username", userName);
-		configureUserMap.put("policies", policies);
+		Map<String,String>configureUserMap = new HashMap<>();
+		configureUserMap.put(USERNAME_STR, userName);
+		configureUserMap.put(POLICIES_STR, policies);
 		String userpassUserConfigJson =TVaultConstants.EMPTY;
 		try {
 			userpassUserConfigJson = objMapper.writeValueAsString(configureUserMap);
 		} catch (JsonProcessingException e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "configureUserpassUser").
 					put(LogMessage.MESSAGE, String.format ("Unable to create userpassUserConfigJson [%s] with userName [%s] policies [%s] ", e.getMessage(), userName, policies)).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 
 		}
 		return reqProcessor.process("/auth/userpass/updatepolicy",userpassUserConfigJson,token);
 	}
+	
 	public static Response configureLDAPGroup(String groupName,String policies,String token ){
 		ObjectMapper objMapper = new ObjectMapper();
-		Map<String,String>configureGrouMap = new HashMap<String,String>();
+		Map<String,String>configureGrouMap = new HashMap<>();
 		configureGrouMap.put("groupname", groupName);
-		configureGrouMap.put("policies", policies);
+		configureGrouMap.put(POLICIES_STR, policies);
 		String ldapConfigJson ="";
 		try {
 			ldapConfigJson = objMapper.writeValueAsString(configureGrouMap);
 		} catch (JsonProcessingException e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "configureLDAPGroup").
 					put(LogMessage.MESSAGE, String.format ("Unable to create ldapConfigJson [%s] with groupName [%s] policies [%s] ", e.getMessage(), groupName, policies)).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 		return reqProcessor.process("/auth/ldap/groups/configure",ldapConfigJson,token);
@@ -441,19 +472,19 @@ public final class ControllerUtil {
 	
 	public static Response configureAWSRole(String roleName,String policies,String token ){
 		ObjectMapper objMapper = new ObjectMapper();
-		Map<String,String>configureRoleMap = new HashMap<String,String>();
+		Map<String,String>configureRoleMap = new HashMap<>();
 		configureRoleMap.put("role", roleName);
-		configureRoleMap.put("policies", policies);
+		configureRoleMap.put(POLICIES_STR, policies);
 		String awsConfigJson ="";
 		try {
 			awsConfigJson = objMapper.writeValueAsString(configureRoleMap);
 		} catch (JsonProcessingException e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "configureAWSRole").
 					put(LogMessage.MESSAGE, String.format ("Unable to create awsConfigJson [%s] with roleName [%s] policies [%s] ", e.getMessage(), roleName, policies)).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 		return reqProcessor.process("/auth/aws/roles/update",awsConfigJson,token);
@@ -461,83 +492,83 @@ public final class ControllerUtil {
 	
 	public static Response configureAWSIAMRole(String roleName,String policies,String token ){
 		ObjectMapper objMapper = new ObjectMapper();
-		Map<String,String>configureRoleMap = new HashMap<String,String>();
+		Map<String,String>configureRoleMap = new HashMap<>();
 		configureRoleMap.put("role", roleName);
-		configureRoleMap.put("policies", policies);
+		configureRoleMap.put(POLICIES_STR, policies);
 		String awsConfigJson ="";
 		try {
 			awsConfigJson = objMapper.writeValueAsString(configureRoleMap);
 		} catch (JsonProcessingException e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "configureAWSIAMRole").
 					put(LogMessage.MESSAGE, String.format ("Unable to create awsConfigJson with message [%s] for roleName [%s] policies [%s] ", e.getMessage(), roleName, policies)).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 		return reqProcessor.process("/auth/aws/iam/roles/update",awsConfigJson,token);
-	}
-
-	
+	}	
 	
 	public static Response updateMetadata(Map<String,String> params,String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				put(LogMessage.ACTION, "updateMetadata").
-				put(LogMessage.MESSAGE, String.format ("Trying to upate metadata with params")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				put(LogMessage.ACTION, UPDATE_METADATA_STR).
+				put(LogMessage.MESSAGE, "Trying to upate metadata with params").
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
-		String _type = params.get("type");
+		String metaDataType = params.get("type");
 		String name = params.get("name");
-		String access = params.get("access");
+		String access = params.get(ACCESS_STR);
 		String path = params.get("path");
-		path = "metadata/"+path;
+		path = METADATA_STR+path;
 		
 		ObjectMapper objMapper = new ObjectMapper();
-		String pathjson ="{\"path\":\""+path+"\"}";
+		String pathjson =PATH_STRING+path+"\"}";
 		// Read info for the path
-		Response metadataResponse = reqProcessor.process("/read",pathjson,token);
-		Map<String,Object> _metadataMap = null;
+		Response metadataResponse = reqProcessor.process(READ_SECRETS,pathjson,token);
+		Map<String,Object> metaDataResponseMap = null;
 		if(HttpStatus.OK.equals(metadataResponse.getHttpstatus())){
 			try {
-				_metadataMap = objMapper.readValue(metadataResponse.getResponse(), new TypeReference<Map<String,Object>>() {});
+				metaDataResponseMap = objMapper.readValue(metadataResponse.getResponse(), new TypeReference<Map<String,Object>>() {});
 			} catch (IOException e) {
 				log.error(e);
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-						put(LogMessage.ACTION, "updateMetadata").
-						put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type [%s], name [%s], access [%s] and path [%s] message [%s]", _type, name, access, path, e.getMessage())).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+						put(LogMessage.ACTION, UPDATE_METADATA_STR).
+						put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type [%s], name [%s], access [%s] and path [%s] message [%s]", metaDataType, name, access, path, e.getMessage())).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
+			}			
+			
+			if(metaDataResponseMap != null) {
+				Map<String,Object> metadataMap = (Map<String,Object>) metaDataResponseMap.get("data");
+				
+				@SuppressWarnings("unchecked")
+				Map<String,String> dataMap = (Map<String,String>) metadataMap.get(metaDataType);
+				if(dataMap == null) { dataMap = new HashMap<>(); metadataMap.put(metaDataType, dataMap);}
+				
+				dataMap.remove(name);
+				if(!"delete".equals(access))
+					dataMap.put(name, access);
+				
+				
+				String metadataJson = "";
+				try {
+					metadataJson = objMapper.writeValueAsString(metadataMap);
+				} catch (JsonProcessingException e) {
+					log.error(e);
+					log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+							put(LogMessage.ACTION, UPDATE_METADATA_STR).
+							put(LogMessage.MESSAGE, String.format ("Error in creating metadataJson for type [%s], name [%s], access [%s] and path [%s] with message [%s]", metaDataType, name, access, path, e.getMessage())).
+							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+							build()));
+				}
+				
+				String writeJson =  PATH_STRING+path+DATA_STRING+ metadataJson +"}";
+				metadataResponse = reqProcessor.process(WRITE_SECRETS,writeJson,token);
 			}
-			
-			@SuppressWarnings("unchecked")
-			Map<String,Object> metadataMap = (Map<String,Object>) _metadataMap.get("data");
-			
-			@SuppressWarnings("unchecked")
-			Map<String,String> dataMap = (Map<String,String>) metadataMap.get(_type);
-			if(dataMap == null) { dataMap = new HashMap<String,String>(); metadataMap.put(_type, dataMap);}
-			
-			dataMap.remove(name);
-			if(!"delete".equals(access))
-				dataMap.put(name, access);
-			
-			String metadataJson = "";
-			try {
-				metadataJson = objMapper.writeValueAsString(metadataMap);
-			} catch (JsonProcessingException e) {
-				log.error(e);
-				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-						put(LogMessage.ACTION, "updateMetadata").
-						put(LogMessage.MESSAGE, String.format ("Error in creating metadataJson for type [%s], name [%s], access [%s] and path [%s] with message [%s]", _type, name, access, path, e.getMessage())).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-						build()));
-			}
-			
-			String writeJson =  "{\"path\":\""+path+"\",\"data\":"+ metadataJson +"}";
-			metadataResponse = reqProcessor.process("/write",writeJson,token);
 			return metadataResponse;
 		}
 		return null;
@@ -545,26 +576,75 @@ public final class ControllerUtil {
 	
 	public static Response updateMetaDataOnConfigChanges(String name, String type,String currentPolicies, String latestPolicies, String token){
 		
-		List<String> _currentPolicies = Arrays.asList(currentPolicies.split(","));
-		List<String> _latestpolicies = Arrays.asList(latestPolicies.split(","));
-		List<String> _new = new ArrayList<String>();
-		List<String> _del = new ArrayList<String>();
-		for(String currPolicy : _currentPolicies){
-			if(!_latestpolicies.contains(currPolicy)){
-				_del.add(currPolicy);
+		List<String> currentPoliciesList = Arrays.asList(currentPolicies.split(","));
+		List<String> latestPoliciesList = Arrays.asList(latestPolicies.split(","));
+		List<String> newPolicyList = new ArrayList<>();
+		List<String> deletePolicyList = new ArrayList<>();
+		for(String currPolicy : currentPoliciesList){
+			if(!latestPoliciesList.contains(currPolicy)){
+				deletePolicyList.add(currPolicy);
 			}
 		}
 		
-		for(String latest : _latestpolicies){
-			if(!_currentPolicies.contains(latest)){
-				_new.add(latest);
+		for(String latest : latestPoliciesList){
+			if(!currentPoliciesList.contains(latest)){
+				newPolicyList.add(latest);
 			}
 		}
 		
-		Map<String,String> sdbAccessMap = new HashMap<String,String>();
+		Map<String,String> sdbAccessMap = new HashMap<>();
 		
-		for(String policy : _new){
-			String policyInfo[] = policy.split("_");
+		createSdbAccessMapForNewPolicyList(newPolicyList, sdbAccessMap);
+		
+		createSdbAccessMapForDeletePolicyList(deletePolicyList, sdbAccessMap);
+		
+		Iterator<Entry<String,String>> itr = sdbAccessMap.entrySet().iterator();
+		List<String> failed = new ArrayList<>();
+		while(itr.hasNext()){
+			Entry<String,String> entry = itr.next();
+			Map<String,String> params = new HashMap<>();
+			params.put("type", type);
+			params.put("name", name);
+			params.put("path", entry.getKey());
+			params.put(ACCESS_STR, entry.getValue());
+			Response rsp = updateMetadata(params, token);
+			if(rsp == null || !HttpStatus.NO_CONTENT.equals(rsp.getHttpstatus())){
+				failed.add(entry.getKey());
+			}
+		}
+		Response response = new Response();
+		if(failed.isEmpty()){
+			response.setHttpstatus(HttpStatus.OK);
+		}else{
+			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					put(LogMessage.ACTION, "updateMetaDataOnConfigChanges").
+					put(LogMessage.MESSAGE, "updateMetaDataOnConfigChanges failed ").
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+					build()));
+			response.setHttpstatus(HttpStatus.MULTI_STATUS);
+			response.setResponse("Meta data update failed for "+failed.toString() );
+		}
+		return response;
+	}
+
+	private static void createSdbAccessMapForDeletePolicyList(List<String> deletePolicyList,
+			Map<String, String> sdbAccessMap) {
+		for(String policy : deletePolicyList){
+			String[] policyInfo = policy.split("_");
+			if(policyInfo.length==3){
+				String path = policyInfo[1]+'/'+policyInfo[2];
+				if(!sdbAccessMap.containsKey(path)){
+					sdbAccessMap.put(path, "delete");
+				}
+			}
+		}
+	}
+
+	private static void createSdbAccessMapForNewPolicyList(List<String> newPolicyList,
+			Map<String, String> sdbAccessMap) {
+		for(String policy : newPolicyList){
+			String[] policyInfo = policy.split("_");
 			if(policyInfo.length==3){
 				String access ="" ;
 				switch(policyInfo[0]) {
@@ -572,48 +652,10 @@ public final class ControllerUtil {
 					case "w" : 	access = TVaultConstants.WRITE_POLICY; break;
 					default:	access= TVaultConstants.DENY_POLICY ;break;
 				}
-				String path = policyInfo[1]+"/"+policyInfo[2];
+				String path = policyInfo[1]+'/'+policyInfo[2];
 				sdbAccessMap.put(path, access);
 			}
 		}
-		for(String policy : _del){
-			String policyInfo[] = policy.split("_");
-			if(policyInfo.length==3){
-				String path = policyInfo[1]+"/"+policyInfo[2];
-				if(!sdbAccessMap.containsKey(path)){
-					sdbAccessMap.put(path, "delete");
-				}
-			}
-		}
-		
-		Iterator<Entry<String,String>> itr = sdbAccessMap.entrySet().iterator();
-		List<String> failed = new ArrayList<String>();
-		while(itr.hasNext()){
-			Entry<String,String> entry = itr.next();
-			Map<String,String> params = new HashMap<String,String>();
-			params.put("type", type);
-			params.put("name", name);
-			params.put("path", entry.getKey());
-			params.put("access", entry.getValue());
-			Response rsp = updateMetadata(params, token);
-			if(rsp == null || !HttpStatus.NO_CONTENT.equals(rsp.getHttpstatus())){
-				failed.add(entry.getKey());
-			}
-		}
-		Response response = new Response();
-		if(failed.size()==0){
-			response.setHttpstatus(HttpStatus.OK);
-		}else{
-			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					put(LogMessage.ACTION, "updateMetaDataOnConfigChanges").
-					put(LogMessage.MESSAGE, String.format ("updateMetaDataOnConfigChanges failed ")).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-					build()));
-			response.setHttpstatus(HttpStatus.MULTI_STATUS);
-			response.setResponse("Meta data update failed for "+failed.toString() );
-		}
-		return response;
 	}
 
 	/**
@@ -623,50 +665,52 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static Response updateMetadataOnSvcUpdate(String path, ServiceAccount serviceAccount, String token) {
-		String _path = "metadata/" + path;
+		String metaDataPath = METADATA_STR + path;
 		ObjectMapper objMapper = new ObjectMapper();
-		String pathjson ="{\"path\":\""+_path+"\"}";
+		String pathjson =PATH_STRING+metaDataPath+"\"}";
 
-		Response metadataResponse = reqProcessor.process("/read",pathjson,token);
-		Map<String,Object> _metadataMap = null;
+		Response metadataResponse = reqProcessor.process(READ_SECRETS,pathjson,token);
+		Map<String,Object> metaDataResponseMap = null;
 		if(HttpStatus.OK.equals(metadataResponse.getHttpstatus())){
 			try {
-				_metadataMap = objMapper.readValue(metadataResponse.getResponse(), new TypeReference<Map<String,Object>>() {});
+				metaDataResponseMap = objMapper.readValue(metadataResponse.getResponse(), new TypeReference<Map<String,Object>>() {});
 			} catch (IOException e) {
 				log.error(e);
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-						put(LogMessage.ACTION, "updateMetadata").
-						put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type service account update, name [%s], and path [%s] message [%s]", serviceAccount.getName(), _path, e.getMessage())).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+						put(LogMessage.ACTION, UPDATE_METADATA_STR).
+						put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type service account update, name [%s], and path [%s] message [%s]", serviceAccount.getName(), metaDataPath, e.getMessage())).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 			}
-
-			@SuppressWarnings("unchecked")
-			Map<String,Object> metadataMap = (Map<String,Object>) _metadataMap.get("data");
-
-			metadataMap.put("adGroup", serviceAccount.getAdGroup());
-			metadataMap.put("appName", serviceAccount.getAppName());
-			metadataMap.put("appID", serviceAccount.getAppID());
-			metadataMap.put("appTag", serviceAccount.getAppTag());
-			if (serviceAccount.getOwner() != null && !serviceAccount.getOwner().equals(TVaultConstants.EMPTY) && !metadataMap.get("managedBy").equals(serviceAccount.getOwner())) {
-				metadataMap.put("managedBy", serviceAccount.getOwner());
+			
+			if(metaDataResponseMap != null) {
+				@SuppressWarnings("unchecked")			
+				Map<String,Object> metadataMap = (Map<String,Object>) metaDataResponseMap.get("data");
+	
+				metadataMap.put("adGroup", serviceAccount.getAdGroup());
+				metadataMap.put("appName", serviceAccount.getAppName());
+				metadataMap.put("appID", serviceAccount.getAppID());
+				metadataMap.put("appTag", serviceAccount.getAppTag());
+				if (serviceAccount.getOwner() != null && !serviceAccount.getOwner().equals(TVaultConstants.EMPTY) && !metadataMap.get("managedBy").equals(serviceAccount.getOwner())) {
+					metadataMap.put("managedBy", serviceAccount.getOwner());
+				}
+				String metadataJson = "";
+				try {
+					metadataJson = objMapper.writeValueAsString(metadataMap);
+				} catch (JsonProcessingException e) {
+					log.error(e);
+					log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+							put(LogMessage.ACTION, UPDATE_METADATA_STR).
+							put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type service account update, name [%s], and path [%s] message [%s]", serviceAccount.getName(), metaDataPath, e.getMessage())).
+							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+							build()));
+				}
+	
+				String writeJson =  PATH_STRING+metaDataPath+DATA_STRING+ metadataJson +"}";
+				metadataResponse = reqProcessor.process(WRITE_SECRETS,writeJson,token);
 			}
-			String metadataJson = "";
-			try {
-				metadataJson = objMapper.writeValueAsString(metadataMap);
-			} catch (JsonProcessingException e) {
-				log.error(e);
-				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-						put(LogMessage.ACTION, "updateMetadata").
-						put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type service account update, name [%s], and path [%s] message [%s]", serviceAccount.getName(), _path, e.getMessage())).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-						build()));
-			}
-
-			String writeJson =  "{\"path\":\""+_path+"\",\"data\":"+ metadataJson +"}";
-			metadataResponse = reqProcessor.process("/write",writeJson,token);
 			return metadataResponse;
 		}
 		return null;
@@ -681,57 +725,57 @@ public final class ControllerUtil {
 	 */
 	public static Response updateMetadataOnSvcaccPwdReset(Map<String,String> params,String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				put(LogMessage.ACTION, "updateMetadata").
-				put(LogMessage.MESSAGE, String.format ("Trying to upate metadata on Service account password reset")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				put(LogMessage.ACTION, UPDATE_METADATA_STR).
+				put(LogMessage.MESSAGE, "Trying to upate metadata on Service account password reset").
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
-		String _type = params.get("type");
-		String value = params.get("value");
+		String metaDataType = params.get("type");
 		String path = params.get("path");
-		path = "metadata/"+path;
+		path = METADATA_STR+path;
 
 		ObjectMapper objMapper = new ObjectMapper();
-		String pathjson ="{\"path\":\""+path+"\"}";
+		String pathjson =PATH_STRING+path+"\"}";
 		// Read info for the path
-		Response metadataResponse = reqProcessor.process("/read",pathjson,token);
-		Map<String,Object> _metadataMap = null;
+		Response metadataResponse = reqProcessor.process(READ_SECRETS,pathjson,token);
+		Map<String,Object> metaDataResponseMap = null;
 		if(HttpStatus.OK.equals(metadataResponse.getHttpstatus())){
 			try {
-				_metadataMap = objMapper.readValue(metadataResponse.getResponse(), new TypeReference<Map<String,Object>>() {});
+				metaDataResponseMap = objMapper.readValue(metadataResponse.getResponse(), new TypeReference<Map<String,Object>>() {});
 			} catch (IOException e) {
 				log.error(e);
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-						put(LogMessage.ACTION, "updateMetadata").
-						put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type [%s] and path [%s] message [%s]", _type, path, e.getMessage())).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+						put(LogMessage.ACTION, UPDATE_METADATA_STR).
+						put(LogMessage.MESSAGE, String.format ("Error creating _metadataMap for type [%s] and path [%s] message [%s]", metaDataType, path, e.getMessage())).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 			}
 
-			@SuppressWarnings("unchecked")
-			Map<String,Object> metadataMap = (Map<String,Object>) _metadataMap.get("data");
-
-			@SuppressWarnings("unchecked")
-			boolean initialPasswwordReset = (boolean) metadataMap.get(_type);
-			if(StringUtils.isEmpty(initialPasswwordReset) || !initialPasswwordReset) {
-				metadataMap.put(_type, true);
-				String metadataJson = "";
-				try {
-					metadataJson = objMapper.writeValueAsString(metadataMap);
-				} catch (JsonProcessingException e) {
-					log.error(e);
-					log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "updateMetadata").
-							put(LogMessage.MESSAGE, String.format ("Error in creating metadataJson for type [%s] and path [%s] with message [%s]", _type, path, e.getMessage())).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-							build()));
+			if(metaDataResponseMap != null) {
+				@SuppressWarnings("unchecked")
+				Map<String,Object> metadataMap = (Map<String,Object>) metaDataResponseMap.get("data");	
+				
+				boolean initialPasswwordReset = (boolean) metadataMap.get(metaDataType);
+				if(StringUtils.isEmpty(initialPasswwordReset) || !initialPasswwordReset) {
+					metadataMap.put(metaDataType, true);
+					String metadataJson = "";
+					try {
+						metadataJson = objMapper.writeValueAsString(metadataMap);
+					} catch (JsonProcessingException e) {
+						log.error(e);
+						log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+								put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+								put(LogMessage.ACTION, UPDATE_METADATA_STR).
+								put(LogMessage.MESSAGE, String.format ("Error in creating metadataJson for type [%s] and path [%s] with message [%s]", metaDataType, path, e.getMessage())).
+								put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+								build()));
+					}
+	
+					String writeJson =  PATH_STRING+path+DATA_STRING+ metadataJson +"}";
+					metadataResponse = reqProcessor.process(WRITE_SECRETS,writeJson,token);
+					return metadataResponse;
 				}
-
-				String writeJson =  "{\"path\":\""+path+"\",\"data\":"+ metadataJson +"}";
-				metadataResponse = reqProcessor.process("/write",writeJson,token);
-				return metadataResponse;
 			}
             return metadataResponse;
 		}
@@ -750,10 +794,10 @@ public final class ControllerUtil {
 		} catch (Exception e) {
 			log.error(e);
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "parseJson").
-					put(LogMessage.MESSAGE, String.format ("parseJson failed ")).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.MESSAGE, "parseJson failed ").
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 		return response;
@@ -763,13 +807,12 @@ public final class ControllerUtil {
 		String jsonStr = TVaultConstants.EMPTY_JSON;
 		try {
 			jsonStr = new ObjectMapper().writeValueAsString(jsonMap);
-		} catch (JsonProcessingException e) {
-			e.printStackTrace();
+		} catch (JsonProcessingException e) {			
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "convetToJson").
-					put(LogMessage.MESSAGE, String.format ("convetToJson failed ")).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.MESSAGE, "convetToJson failed ").
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 	
@@ -783,23 +826,22 @@ public final class ControllerUtil {
 	 * @throws JsonProcessingException
 	 * @throws IOException
 	 */
-	public static String getPoliciesAsStringFromJson(ObjectMapper objMapper, String policyJson) throws JsonProcessingException, IOException{
-		String currentpolicies = TVaultConstants.EMPTY;
-		JsonNode policiesNode = objMapper.readTree(policyJson).get("data").get("policies");
+	public static String getPoliciesAsStringFromJson(ObjectMapper objMapper, String policyJson) throws IOException{
+		StringBuilder currentpolicies = new StringBuilder("");		
+		JsonNode policiesNode = objMapper.readTree(policyJson).get("data").get(POLICIES_STR);
 		if (policiesNode.isContainerNode()) {
 			Iterator<JsonNode> elementsIterator = policiesNode.elements();
 		       while (elementsIterator.hasNext()) {
 		    	   JsonNode element = elementsIterator.next();
-		           currentpolicies += element.asText()+",";
+		    	   currentpolicies.append(element.asText()+",");
 		       }
+		} else {
+			currentpolicies.append(policiesNode.asText());
 		}
-		else {
-			currentpolicies = policiesNode.asText();
-		}
-		if (currentpolicies.endsWith(",")) {
-			currentpolicies = currentpolicies.substring(0, currentpolicies.length()-1);
-		}
-		return currentpolicies;
+		if (currentpolicies.length() > 0 && currentpolicies.toString().endsWith(",")) {			
+			currentpolicies.deleteCharAt( currentpolicies.length() - 1 );
+		}		
+		return currentpolicies.toString();
 	}
 
 	/**
@@ -810,9 +852,9 @@ public final class ControllerUtil {
 	 * @throws JsonProcessingException
 	 * @throws IOException
 	 */
-	public static List<String> getPoliciesAsListFromJson(ObjectMapper objMapper, String policyJson) throws JsonProcessingException, IOException{
+	public static List<String> getPoliciesAsListFromJson(ObjectMapper objMapper, String policyJson) throws IOException{
 		List<String> currentpolicies = new ArrayList<>();
-		JsonNode policiesNode = objMapper.readTree(policyJson).get("data").get("policies");
+		JsonNode policiesNode = objMapper.readTree(policyJson).get("data").get(POLICIES_STR);
 		if (policiesNode.isContainerNode()) {
 			Iterator<JsonNode> elementsIterator = policiesNode.elements();
 			while (elementsIterator.hasNext()) {
@@ -828,46 +870,28 @@ public final class ControllerUtil {
 
 	public static void updateUserPolicyAssociationOnSDBDelete(String sdb,Map<String,String> acessInfo,String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				put(LogMessage.ACTION, "updateUserPolicyAssociationOnSDBDelete").
-				put(LogMessage.MESSAGE, String.format ("trying updateUserPolicyAssociationOnSDBDelete")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				put(LogMessage.ACTION, UPDATE_USER_POLICY_STR).
+				put(LogMessage.MESSAGE, "trying updateUserPolicyAssociationOnSDBDelete").
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		log.debug ("updateUserPolicyAssociationOnSDBDelete...for auth method " + vaultAuthMethod);
 		if(acessInfo!=null){
-			String folders[] = sdb.split("[/]+");
-			String r_policy = "r_";
-			String w_policy = "w_";
-			String d_policy = "d_";
-			String s_policy = "s_";
+			String[] folders = sdb.split("[/]+");
+			StringBuilder readPolicy = new StringBuilder("r_");
+			StringBuilder writePolicy = new StringBuilder("w_");
+			StringBuilder deletePolicy = new StringBuilder("d_");
+			StringBuilder sPolicy = new StringBuilder("s_");
 
-			if (folders.length > 0) {
-				for (int index = 0; index < folders.length; index++) {
-					if (index == folders.length -1 ) {
-						r_policy += folders[index];
-						w_policy += folders[index];
-						d_policy += folders[index];
-						s_policy += folders[index];
-					}
-					else {
-						r_policy += folders[index]  +"_";
-						w_policy += folders[index] +"_";
-						d_policy += folders[index] +"_";
-						s_policy += folders[index] +"_";
-					}
-				}
-			}	
+			generateUserPolicyString(folders, readPolicy, writePolicy, deletePolicy, sPolicy);
+			
 			Set<String> users = acessInfo.keySet();
 			ObjectMapper objMapper = new ObjectMapper();
 			for(String userName : users){
 				
 				Response userResponse;
-				if (TVaultConstants.USERPASS.equals(vaultAuthMethod)) {
-					userResponse = reqProcessor.process("/auth/userpass/read","{\"username\":\""+userName+"\"}",token);
-				}
-				else {
-					userResponse = reqProcessor.process("/auth/ldap/users","{\"username\":\""+userName+"\"}",token);
-				}	
+				userResponse = getUserResponse(token, userName);	
+				
 				String responseJson="";
 				String groups="";
 				List<String> policies = new ArrayList<>();
@@ -875,8 +899,7 @@ public final class ControllerUtil {
 
 				if(HttpStatus.OK.equals(userResponse.getHttpstatus())){
 					responseJson = userResponse.getResponse();	
-					try {
-						//currentpolicies = getPoliciesAsStringFromJson(objMapper, responseJson);
+					try {						
 						currentpolicies = ControllerUtil.getPoliciesAsListFromJson(objMapper, responseJson);
 						if (!(TVaultConstants.USERPASS.equals(vaultAuthMethod))) {
 							groups = objMapper.readTree(responseJson).get("data").get("groups").asText();
@@ -884,103 +907,145 @@ public final class ControllerUtil {
 					} catch (IOException e) {
 						log.error(e);
 						log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-								put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-								put(LogMessage.ACTION, "updateUserPolicyAssociationOnSDBDelete").
+								put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+								put(LogMessage.ACTION, UPDATE_USER_POLICY_STR).
 								put(LogMessage.MESSAGE, String.format ("updateUserPolicyAssociationOnSDBDelete failed [%s]", e.getMessage())).
-								put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+								put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 								build()));
 					}
 					policies.addAll(currentpolicies);
-					policies.remove(r_policy);
-					policies.remove(w_policy);
-					policies.remove(d_policy);
-					policies.remove(s_policy);
+					policies.remove(readPolicy.toString());
+					policies.remove(writePolicy.toString());
+					policies.remove(deletePolicy.toString());
+					policies.remove(sPolicy.toString());
 
-					String policiesString = org.apache.commons.lang3.StringUtils.join(policies, ",");
-
-					log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "updateUserPolicyAssociationOnSDBDelete").
-							put(LogMessage.MESSAGE, String.format ("Current policies [%s]", policies )).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-							build()));
-					if (TVaultConstants.USERPASS.equals(vaultAuthMethod)) {
-						log.debug ("Inside userpass");
-						ControllerUtil.configureUserpassUser(userName,policiesString,token);
-					}
-					else {
-						log.debug ("Inside non-userpass");
-						ControllerUtil.configureLDAPUser(userName,policiesString,groups,token);
-					}
+					configureLDAPorUserpassUser(token, userName, groups, policies);
 				}
 				
 			}
 		}
 	}
+
+	private static Response getUserResponse(String token, String userName) {
+		Response userResponse;
+		if (TVaultConstants.USERPASS.equals(vaultAuthMethod)) {
+			userResponse = reqProcessor.process("/auth/userpass/read","{\"username\":\""+userName+"\"}",token);
+		}
+		else {
+			userResponse = reqProcessor.process("/auth/ldap/users","{\"username\":\""+userName+"\"}",token);
+		}
+		return userResponse;
+	}
+
+	private static void configureLDAPorUserpassUser(String token, String userName, String groups,
+			List<String> policies) {
+		String policiesString = org.apache.commons.lang3.StringUtils.join(policies, ",");
+
+		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				put(LogMessage.ACTION, UPDATE_USER_POLICY_STR).
+				put(LogMessage.MESSAGE, String.format ("Current policies [%s]", policies )).
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+				build()));
+		if (TVaultConstants.USERPASS.equals(vaultAuthMethod)) {
+			log.debug ("Inside userpass");
+			ControllerUtil.configureUserpassUser(userName,policiesString,token);
+		}
+		else {
+			log.debug ("Inside non-userpass");
+			ControllerUtil.configureLDAPUser(userName,policiesString,groups,token);
+		}
+	}
+
+	private static void generateUserPolicyString(String[] folders, StringBuilder readPolicy, StringBuilder writePolicy,
+			StringBuilder deletePolicy, StringBuilder sPolicy) {
+		if (folders.length > 0) {
+			for (int index = 0; index < folders.length; index++) {
+				if (index == folders.length -1 ) {
+					readPolicy.append(folders[index]);
+					writePolicy.append(folders[index]);
+					deletePolicy.append(folders[index]);
+					sPolicy.append(folders[index]);
+				}
+				else {						
+					readPolicy.append(folders[index] +"_");
+					writePolicy.append(folders[index] +"_");
+					deletePolicy.append(folders[index] +"_");
+					sPolicy.append(folders[index] +"_");
+				}
+			}
+		}
+	}
 	public static void updateGroupPolicyAssociationOnSDBDelete(String sdb,Map<String,String> acessInfo,String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 				put(LogMessage.ACTION, "updateGroupPolicyAssociationOnSDBDelete").
-				put(LogMessage.MESSAGE, String.format ("trying updateGroupPolicyAssociationOnSDBDelete")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.MESSAGE, "trying updateGroupPolicyAssociationOnSDBDelete").
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		if (TVaultConstants.USERPASS.equals(vaultAuthMethod)) {
 			log.debug ("Inside userpass of updateGroupPolicyAssociationOnSDBDelete...Just Returning...");
 			return;
 		}
 		if(acessInfo!=null){
-			String folders[] = sdb.split("[/]+");
-			String r_policy = "r_";
-			String w_policy = "w_";
-			String d_policy = "d_";
+			String[] folders = sdb.split("[/]+");
 			
-			if (folders.length > 0) {
-				for (int index = 0; index < folders.length; index++) {
-					if (index == folders.length -1 ) {
-						r_policy += folders[index];
-						w_policy += folders[index];
-						d_policy += folders[index];
-					}
-					else {
-						r_policy += folders[index] +"_";
-						w_policy += folders[index] +"_";
-						d_policy += folders[index] +"_";
-					}
-				}
-			}	
+			StringBuilder readPolicy = new StringBuilder("r_");
+			StringBuilder writePolicy = new StringBuilder("w_");
+			StringBuilder deletePolicy = new StringBuilder("d_");
+			
+			generatePolicyString(folders, readPolicy, writePolicy, deletePolicy);	
+			
 			Set<String> groups = acessInfo.keySet();
 			ObjectMapper objMapper = new ObjectMapper();
 			for(String groupName : groups){
 				Response response = reqProcessor.process("/auth/ldap/groups","{\"groupname\":\""+groupName+"\"}",token);
-				String responseJson=TVaultConstants.EMPTY;
+				String responseJson="";
 				List<String> policies = new ArrayList<>();
 				List<String> currentpolicies = new ArrayList<>();
 				if(HttpStatus.OK.equals(response.getHttpstatus())){
 					responseJson = response.getResponse();	
-					try {
-						//currentpolicies = getPoliciesAsStringFromJson(objMapper, responseJson);
+					try {						
 						currentpolicies = ControllerUtil.getPoliciesAsListFromJson(objMapper, responseJson);
 					} catch (IOException e) {
 						log.error(e);
 						log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-								put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-								put(LogMessage.ACTION, "updateUserPolicyAssociationOnSDBDelete").
+								put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+								put(LogMessage.ACTION, UPDATE_USER_POLICY_STR).
 								put(LogMessage.MESSAGE, String.format ("updateUserPolicyAssociationOnSDBDelete failed [%s]", e.getMessage())).
-								put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+								put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 								build()));
 					}
 					policies.addAll(currentpolicies);
-					policies.remove(r_policy);
-					policies.remove(w_policy);
-					policies.remove(d_policy);
+					policies.remove(readPolicy.toString());
+					policies.remove(writePolicy.toString());
+					policies.remove(deletePolicy.toString());
 					String policiesString = org.apache.commons.lang3.StringUtils.join(policies, ",");
 					log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "updateUserPolicyAssociationOnSDBDelete").
+							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+							put(LogMessage.ACTION, UPDATE_USER_POLICY_STR).
 							put(LogMessage.MESSAGE, String.format ("Current policies [%s]", policies )).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 							build()));
 					ControllerUtil.configureLDAPGroup(groupName,policiesString,token);
+				}
+			}
+		}
+	}
+
+	private static void generatePolicyString(String[] folders, StringBuilder readPolicy, StringBuilder writePolicy,
+			StringBuilder deletePolicy) {
+		if (folders.length > 0) {
+			for (int index = 0; index < folders.length; index++) {
+				if (index == folders.length -1 ) {						
+					readPolicy.append(folders[index]);
+					writePolicy.append(folders[index]);
+					deletePolicy.append(folders[index]);
+				}
+				else {						
+					readPolicy.append(folders[index] +"_");
+					writePolicy.append(folders[index] +"_");
+					deletePolicy.append(folders[index] +"_");
 				}
 			}
 		}
@@ -989,30 +1054,18 @@ public final class ControllerUtil {
 	// Not using this method and decided to delete the role instead with the concept that you cant have same role used by different safe.S
 	public static void updateAwsRolePolicyAssociationOnSDBDelete(String sdb,Map<String,String> acessInfo,String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				put(LogMessage.ACTION, "updateAwsRolePolicyAssociationOnSDBDelete").
-				put(LogMessage.MESSAGE, String.format ("trying updateAwsRolePolicyAssociationOnSDBDelete")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				put(LogMessage.ACTION, UPDATE_AWS_ROLE_POLICY_STR).
+				put(LogMessage.MESSAGE, "trying updateAwsRolePolicyAssociationOnSDBDelete").
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		if(acessInfo!=null){
-			String folders[] = sdb.split("[/]+");
-			String r_policy = "r_";
-			String w_policy = "w_";
-			String d_policy = "d_";
-			if (folders.length > 0) {
-				for (int index = 0; index < folders.length; index++) {
-					if (index == folders.length -1 ) {
-						r_policy += folders[index];
-						w_policy += folders[index];
-						d_policy += folders[index];
-					}
-					else {
-						r_policy += folders[index]  +"_";
-						w_policy += folders[index] +"_";
-						d_policy += folders[index] +"_";
-					}
-				}
-			}	
+			String[] folders = sdb.split("[/]+");
+			StringBuilder readPolicy = new StringBuilder("r_");
+			StringBuilder writePolicy = new StringBuilder("w_");
+			StringBuilder deletePolicy = new StringBuilder("d_");
+			
+			generatePolicyString(folders, readPolicy, writePolicy, deletePolicy);				
 
 			Set<String> roles = acessInfo.keySet();
 			ObjectMapper objMapper = new ObjectMapper();
@@ -1024,42 +1077,47 @@ public final class ControllerUtil {
 				
 				if(HttpStatus.OK.equals(roleResponse.getHttpstatus())){
 					responseJson = roleResponse.getResponse();	
-					try {
-						JsonNode policiesArry =objMapper.readTree(responseJson).get("policies");
-						for(JsonNode policyNode : policiesArry){
-							currentpolicies =	(currentpolicies.equals("")) ? currentpolicies+policyNode.asText():currentpolicies+","+policyNode.asText();
-						}
-					} catch (IOException e) {
-						log.error(e);
-						log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-								put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-								put(LogMessage.ACTION, "updateAwsRolePolicyAssociationOnSDBDelete").
-								put(LogMessage.MESSAGE, String.format ("Generation of currentpolicies failed for [%s]", e.getMessage())).
-								put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-								build()));
-					}
+					currentpolicies = generateCurrentPolicies(objMapper, responseJson, currentpolicies);
 					policies = currentpolicies;
-					policies = policies.replaceAll(r_policy, "");
-					policies = policies.replaceAll(w_policy, "");
-					policies = policies.replaceAll(d_policy, "");
+					policies = policies.replaceAll(readPolicy.toString(), "");
+					policies = policies.replaceAll(writePolicy.toString(), "");
+					policies = policies.replaceAll(deletePolicy.toString(), "");
 					log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "updateAwsRolePolicyAssociationOnSDBDelete").
+							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+							put(LogMessage.ACTION, UPDATE_AWS_ROLE_POLICY_STR).
 							put(LogMessage.MESSAGE, String.format ("currentpolicies [%s]",policies)).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 							build()));
 					ControllerUtil.configureAWSRole(role, policies, token);
 				}
 			}
 		}
 	}
+
+	private static String generateCurrentPolicies(ObjectMapper objMapper, String responseJson, String currentpolicies) {
+		try {
+			JsonNode policiesArry =objMapper.readTree(responseJson).get(POLICIES_STR);
+			for(JsonNode policyNode : policiesArry){
+				currentpolicies =	(currentpolicies.equals("")) ? currentpolicies+policyNode.asText():currentpolicies+","+policyNode.asText();
+			}
+		} catch (IOException e) {
+			log.error(e);
+			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+					put(LogMessage.ACTION, UPDATE_AWS_ROLE_POLICY_STR).
+					put(LogMessage.MESSAGE, String.format ("Generation of currentpolicies failed for [%s]", e.getMessage())).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
+					build()));
+		}
+		return currentpolicies;
+	}
 	
 	public static void deleteAwsRoleOnSDBDelete(String sdb,Map<String,String> acessInfo,String token){
 		log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-				put(LogMessage.ACTION, "deleteAwsRoleOnSDBDelete").
-				put(LogMessage.MESSAGE, String.format ("Trying to deleteAwsRoleOnSDBDelete")).
-				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+				put(LogMessage.ACTION, DELETE_AWS_ROLE_SDB_STR).
+				put(LogMessage.MESSAGE, "Trying to deleteAwsRoleOnSDBDelete").
+				put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				build()));
 		if (TVaultConstants.USERPASS.equals(vaultAuthMethod)) {
 			log.debug ("Inside userpass of deleteAwsRoleOnSDBDelete...Just Returning...");
@@ -1072,25 +1130,25 @@ public final class ControllerUtil {
 				if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)){
 					log.debug(role +" , AWS Role is deleted as part of sdb delete. SDB path "+ sdb );
 					log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "deleteAwsRoleOnSDBDelete").
+							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+							put(LogMessage.ACTION, DELETE_AWS_ROLE_SDB_STR).
 							put(LogMessage.MESSAGE, String.format ("%s, AWS Role is deleted as part of sdb delete. SDB path %s ", role, sdb)).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 							build()));
 				}else{
 					log.debug(role +" , AWS Role deletion as part of sdb delete failed . SDB path "+ sdb );
 					log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-							put(LogMessage.ACTION, "deleteAwsRoleOnSDBDelete").
+							put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
+							put(LogMessage.ACTION, DELETE_AWS_ROLE_SDB_STR).
 							put(LogMessage.MESSAGE, String.format ("%s, AWS Role is deletion failed. SDB path %s ", role, sdb)).
-							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+							put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 							build()));
 				}
 			}
 		}
 	}
 	public static boolean isValidDataPath(String path){
-		String paths[] =  path.split("/");
+		String[] paths =  path.split("/");
 		if(paths.length==3){
 			String safeType =  paths[0];
 			if(!(TVaultConstants.APPS.equals(safeType)||TVaultConstants.SHARED.equals(safeType)||TVaultConstants.USERS.equals(safeType))){
@@ -1103,7 +1161,7 @@ public final class ControllerUtil {
 	}
 	
 	public static boolean isPathValid(String path){
-		String paths[] =  path.split("/");
+		String[] paths =  path.split("/");
 		if(paths.length > 0){
 			String safeType =  paths[0];
 			if(!(TVaultConstants.APPS.equals(safeType)||TVaultConstants.SHARED.equals(safeType)||TVaultConstants.USERS.equals(safeType))){
@@ -1116,7 +1174,7 @@ public final class ControllerUtil {
 	}
 	
 	public static boolean isValidSafePath(String path){
-		String paths[] =  path.split("/");
+		String[] paths =  path.split("/");
 		if(paths.length==2){
 			String safeType =  paths[0];
 			if(!(TVaultConstants.APPS.equals(safeType)||TVaultConstants.SHARED.equals(safeType)||TVaultConstants.USERS.equals(safeType))){
@@ -1128,7 +1186,7 @@ public final class ControllerUtil {
 		return true;
 	}
 	public static String getSafePath(String path){
-		String paths[] =  path.split("/");
+		String[] paths =  path.split("/");
 		return paths[0]+"/"+paths[1];
 	}
 	/**
@@ -1139,7 +1197,7 @@ public final class ControllerUtil {
 	public static String getSafeType(String path){
 		String safeType = TVaultConstants.UNKNOWN;
 		if (!StringUtils.isEmpty(path)) {
-			String paths[] =  path.split("/");
+			String[] paths =  path.split("/");
 			if (paths != null && paths.length > 0) {
 				safeType = paths[0];
 			}
@@ -1154,7 +1212,7 @@ public final class ControllerUtil {
 	public static String getSafeName(String path){
 		String safeName = TVaultConstants.EMPTY;
 		if (!StringUtils.isEmpty(path)) {
-			String paths[] =  path.split("/");
+			String[] paths =  path.split("/");
 			if (paths != null && paths.length > 1) {
 				safeName = paths[1];
 			}
@@ -1170,9 +1228,9 @@ public final class ControllerUtil {
 	public static boolean canAddPermission(String path,String token) {
 		String safeType = ControllerUtil.getSafeType(path);
 		String safeName = ControllerUtil.getSafeName(path);
-		
+		boolean isValid = true;
 		List<String> existingSafeNames = getAllExistingSafeNames(safeType, token);
-		List<String> duplicateSafeNames = new ArrayList<String>();
+		List<String> duplicateSafeNames = new ArrayList<>();
 		int count=0;
 		for (String existingSafeName: existingSafeNames) {
 			if (existingSafeName.equalsIgnoreCase(safeName)) {
@@ -1183,12 +1241,13 @@ public final class ControllerUtil {
 		if (count == 1) {
 			// There is one valid safe, Hence permission can be added
 			// Exact match
-			return true;
+			isValid = true;
 		}
 		else {
 			// There are no safes or more than one and hence permission can't be added
-			return false;
+			isValid = false;
 		}
+		return isValid;
 	}
 
 	/**
@@ -1199,12 +1258,9 @@ public final class ControllerUtil {
 	 */
 	public static boolean isValidSafe(String path,String token){
 		String safePath = getSafePath(path);
-		String _path = "metadata/"+safePath;
-		Response response = reqProcessor.process("/sdb","{\"path\":\""+_path+"\"}",token);
-		if(HttpStatus.OK.equals(response.getHttpstatus())){
-			return true;
-		}
-		return false;
+		String metaDataPath = METADATA_STR+safePath;
+		Response response = reqProcessor.process("/sdb",PATH_STRING+metaDataPath+"\"}",token);
+		return (HttpStatus.OK.equals(response.getHttpstatus()));
 	}
 	/**
 	 * Checks whether a given sdb name is vaild
@@ -1212,8 +1268,7 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	private static boolean isSdbNameValid(String sdbName) {
-		boolean valid = Pattern.matches(sdbNameAllowedCharacters, sdbName);
-		return valid;
+		return Pattern.matches(sdbNameAllowedCharacters, sdbName);		
 	}
 	
 	/**
@@ -1237,18 +1292,19 @@ public final class ControllerUtil {
 				) {
 			return false;
 		}
-		if (!isSdbNameValid(sdbName) || sdbName.length() > 40 || !sdbName.equals(sdbName.toLowerCase())) {
+		if (!isSdbNameValid(sdbName) || sdbName.length() > 40 || !sdbName.equalsIgnoreCase(sdbName)) {
 			return false;
 		}
+		boolean isValid = true;
 		String safeName = getSafeName(path);
-		if (!sdbName.equals(safeName)) {
-			return false;
+		if (!sdbName.equals(safeName)) {			
+			isValid = false;
 		}
 		
 		if (!EmailValidator.getInstance().isValid(sdbOwner)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
 	
 	/**
@@ -1275,18 +1331,19 @@ public final class ControllerUtil {
 				) {
 			return false;
 		}
-		if (!isSdbNameValid(sdbName) || sdbName.length() > 40 || !sdbName.equals(sdbName.toLowerCase())) {
+		if (!isSdbNameValid(sdbName) || sdbName.length() > 40 || !sdbName.equalsIgnoreCase(sdbName)) {
 			return false;
 		}
+		boolean isValid = true;
 		String safeName = getSafeName(path);
 		if (!sdbName.equals(safeName)) {
-			return false;
+			isValid = false;
 		}
 		
 		if (!EmailValidator.getInstance().isValid(sdbOwner)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
 	
 	/**
@@ -1295,6 +1352,7 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static boolean areSDBInputsValidForUpdate(Map<String, Object> requestParams) {
+		@SuppressWarnings("unchecked")
 		LinkedHashMap<String, Object> map = (LinkedHashMap<String, Object>) requestParams.get("data");
 		if (MapUtils.isEmpty(map)) {
 			return false;
@@ -1313,14 +1371,15 @@ public final class ControllerUtil {
 		if (sdbName.length() > 40) {
 			return false;
 		}
+		boolean isValid = true;
 		String safeName = getSafeName(path);
 		if (!sdbName.equalsIgnoreCase(safeName)) {
-			return false;
+			isValid = false;
 		}
 		if (!EmailValidator.getInstance().isValid(sdbOwner)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
 
 	/**
@@ -1334,19 +1393,20 @@ public final class ControllerUtil {
 		}
 		if (ObjectUtils.isEmpty(requestMap.get("groupname"))
 				|| ObjectUtils.isEmpty(requestMap.get("path"))
-				|| ObjectUtils.isEmpty(requestMap.get("access"))
+				|| ObjectUtils.isEmpty(requestMap.get(ACCESS_STR))
 				) {
 			return false;
 		}
 		String path = requestMap.get("path");
+		boolean isValid = true;
 		if (!isPathValid(path)) {
-			return false;
+			isValid = false;
 		}
-		String access = (String) requestMap.get("access");
+		String access = requestMap.get(ACCESS_STR);
 		if (!ArrayUtils.contains(permissions, access)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
 	/**
 	 * Validates AWS Role User inputs
@@ -1359,19 +1419,20 @@ public final class ControllerUtil {
 		}
 		if (ObjectUtils.isEmpty(requestMap.get("role"))
 				|| ObjectUtils.isEmpty(requestMap.get("path"))
-				|| ObjectUtils.isEmpty(requestMap.get("access"))
+				|| ObjectUtils.isEmpty(requestMap.get(ACCESS_STR))
 				) {
 			return false;
 		}
-		String path = (String) requestMap.get("path");
+		String path = requestMap.get("path");
+		boolean isValid = true;
 		if (!isPathValid(path)) {
-			return false;
+			isValid = false;
 		}
-		String access = (String) requestMap.get("access");
+		String access = requestMap.get(ACCESS_STR);
 		if (!ArrayUtils.contains(permissions, access)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
 	/**
 	 * Validates Safe User inputs
@@ -1389,14 +1450,15 @@ public final class ControllerUtil {
 			return false;
 		}
 		String path = safeUser.getPath();
+		boolean isValid = true;
 		if (!isPathValid(path)) {
-			return false;
+			isValid = false;
 		}
 		String access = safeUser.getAccess();
 		if (!ArrayUtils.contains(permissions, access)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
 	/**
 	 * Validates Safe User inputs
@@ -1407,22 +1469,24 @@ public final class ControllerUtil {
 		if (MapUtils.isEmpty(requestMap)) {
 			return false;
 		}
-		if (ObjectUtils.isEmpty(requestMap.get("username"))
+		if (ObjectUtils.isEmpty(requestMap.get(USERNAME_STR))
 				|| ObjectUtils.isEmpty(requestMap.get("path"))
-				|| ObjectUtils.isEmpty(requestMap.get("access"))
+				|| ObjectUtils.isEmpty(requestMap.get(ACCESS_STR))
 				) {
 			return false;
 		}
 		String path = (String) requestMap.get("path");
+		boolean isValid = true;
 		if (!isPathValid(path)) {
-			return false;
+			isValid = false;
 		}
-		String access = (String) requestMap.get("access");
+		String access = (String) requestMap.get(ACCESS_STR);
 		if (!ArrayUtils.contains(permissions, access)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
+	
 	/**
 	 * Validates Safe Group inputs
 	 * @param safeUser
@@ -1439,15 +1503,17 @@ public final class ControllerUtil {
 			return false;
 		}
 		String path = safeGroup.getPath();
+		boolean isValid = true;
 		if (!isPathValid(path)) {
-			return false;
+			isValid = false;
 		}
 		String access = safeGroup.getAccess();
 		if (!ArrayUtils.contains(permissions, access)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
+	
 	/**
 	 * Validates Safe User inputs for AppRole association
 	 * @param requestMap
@@ -1459,20 +1525,22 @@ public final class ControllerUtil {
 		}
 		if (ObjectUtils.isEmpty(requestMap.get("role_name"))
 				|| ObjectUtils.isEmpty(requestMap.get("path"))
-				|| ObjectUtils.isEmpty(requestMap.get("access"))
+				|| ObjectUtils.isEmpty(requestMap.get(ACCESS_STR))
 				) {
 			return false;
 		}
 		String path = (String) requestMap.get("path");
+		boolean isValid = true;
 		if (!isPathValid(path)) {
-			return false;
+			isValid = false;
 		}
-		String access = (String) requestMap.get("access");
+		String access = (String) requestMap.get(ACCESS_STR);
 		if (!ArrayUtils.contains(permissions, access)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
+	
 	/**
 	 * Validates AWS Role Group inputs
 	 * @param safeUser
@@ -1489,15 +1557,17 @@ public final class ControllerUtil {
 			return false;
 		}
 		String path = awsRole.getPath();
+		boolean isValid = true;
 		if (!isPathValid(path)) {
-			return false;
+			isValid = false;
 		}
 		String access = awsRole.getAccess();
 		if (!ArrayUtils.contains(permissions, access)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
+	
 	public static String converSDBInputsToLowerCase(String jsonStr) {
 		try {
 			Safe safe = (Safe)JSONUtil.getObj(jsonStr, Safe.class);
@@ -1507,10 +1577,10 @@ public final class ControllerUtil {
 			return jsonStr;
 		} catch (Exception e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					  put(LogMessage.ACTION, "converSDBInputsToLowerCase").
-				      put(LogMessage.MESSAGE, String.format ("Failed to convert [%s] to lowercase.", jsonStr)).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.MESSAGE, String.format (FAILED_LOWERCASE_CONVERSION_MSG, jsonStr)).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return jsonStr;
 		}
@@ -1525,10 +1595,10 @@ public final class ControllerUtil {
 			safe.setPath(safe.getPath().toLowerCase());
 		} catch (Exception e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					  put(LogMessage.ACTION, "converSDBInputsToLowerCase").
-				      put(LogMessage.MESSAGE, String.format ("Failed while converting safe details to lowercase.")).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.MESSAGE, "Failed while converting safe details to lowercase.").
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 		}
 	}
@@ -1545,10 +1615,10 @@ public final class ControllerUtil {
 			return jsonstr;
 		} catch (Exception e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					  put(LogMessage.ACTION, "convertAppRoleInputsToLowerCase").
-				      put(LogMessage.MESSAGE, String.format ("Failed to convert [%s] to lowercase.", jsonstr)).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.MESSAGE, String.format (FAILED_LOWERCASE_CONVERSION_MSG, jsonstr)).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return jsonstr;
 		}
@@ -1567,10 +1637,10 @@ public final class ControllerUtil {
 			return jsonstr;
 		} catch (Exception e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					  put(LogMessage.ACTION, "convertSafeAppRoleAccessToLowerCase").
-				      put(LogMessage.MESSAGE, String.format ("Failed to convert [%s] to lowercase.", jsonstr)).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.MESSAGE, String.format (FAILED_LOWERCASE_CONVERSION_MSG, jsonstr)).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return jsonstr;
 		}
@@ -1586,10 +1656,10 @@ public final class ControllerUtil {
 			return jsonstr;
 		} catch (Exception e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					  put(LogMessage.ACTION, "convertAppRoleSecretIdToLowerCase").
-				      put(LogMessage.MESSAGE, String.format ("Failed to convert [%s] to lowercase.", jsonstr)).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.MESSAGE, String.format (FAILED_LOWERCASE_CONVERSION_MSG, jsonstr)).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return jsonstr;
 		}
@@ -1615,8 +1685,7 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	private static boolean isAppRoleNameValid(String approleName) {
-		boolean valid = Pattern.matches(approleAllowedCharacters, approleName);
-		return valid;
+		return Pattern.matches(approleAllowedCharacters, approleName);
 	}
 	/**
 	 * Validates the approle inputs
@@ -1633,14 +1702,16 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static boolean areAppRoleInputsValid(AppRole approle) {
-		if (null!=approle) {
+		boolean isValid = true;
+		if (!ObjectUtils.isEmpty(approle)) {
 			String approleName = approle.getRole_name();
 			if (StringUtils.isEmpty(approleName) || !isAppRoleNameValid(approleName)) {
-				return false;
-			}
-			return true;
+				isValid = false;
+			}			
+		}else {
+			isValid = false;
 		}
-		return false;
+		return isValid;
 	}
 	/**
 	 * Generates AppRole object from JSON
@@ -1652,10 +1723,10 @@ public final class ControllerUtil {
 			return (AppRole)JSONUtil.getObj(jsonstr, AppRole.class);
 		} catch (Exception e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+				      put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					  put(LogMessage.ACTION, "getAppRoleObjFromString").
 				      put(LogMessage.MESSAGE, String.format ("Failed to convert [%s] to AppRole object.", jsonstr)).
-				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+				      put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 				      build()));
 			return null;
 		}
@@ -1665,7 +1736,8 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static boolean areSecretKeysValid(String jsonString) {
-		Map<String, Boolean> validationMap = new HashMap<String, Boolean>();
+		boolean isValid = true;
+		Map<String, Boolean> validationMap = new HashMap<>();
 		ArrayList<String> secretKeys = getSecretKeys(jsonString);
 		for (String secretKey : secretKeys) {
 			if (StringUtils.isEmpty(secretKey)) {
@@ -1676,28 +1748,22 @@ public final class ControllerUtil {
 			validationMap.put(secretKey, valid);
 		}
 		if (validationMap.values().contains(false)) {
-			return false;
+			isValid = false;
 		}
-		return true;
+		return isValid;
 	}
 	
 	private static String getSecretKey(String jsonString) {
 		String secretKey = null ;
-		String secretValue = null;
 		try {
 			Map<String, Object> requestParams = new ObjectMapper().readValue(jsonString, new TypeReference<Map<String, Object>>(){});
 			LinkedHashMap<String, Object> map = (LinkedHashMap<String, Object>) requestParams.get("data");
 			for (Object key : map.keySet()) {
 				secretKey = (String) key;
-				secretValue = (String) map.get(key);
 				if(!ObjectUtils.isEmpty(key)) {
 					break;
 				}
 			}
-			return secretKey;
-		} catch (JsonParseException e) {
-			return secretKey;
-		} catch (JsonMappingException e) {
 			return secretKey;
 		} catch (IOException e) {
 			return secretKey;
@@ -1709,17 +1775,14 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	private static ArrayList<String> getSecretKeys(String jsonString) {
-		ArrayList<String> secretKeys = new ArrayList<String>() ;
+		ArrayList<String> secretKeys = new ArrayList<>() ;
 		try {
 			Map<String, Object> requestParams = new ObjectMapper().readValue(jsonString, new TypeReference<Map<String, Object>>(){});
+			@SuppressWarnings("unchecked")
 			LinkedHashMap<String, Object> map = (LinkedHashMap<String, Object>) requestParams.get("data");
 			for (Object key : map.keySet()) {
 				secretKeys.add((String) key);
 			  }
-			return secretKeys;
-		} catch (JsonParseException e) {
-			return secretKeys;
-		} catch (JsonMappingException e) {
 			return secretKeys;
 		} catch (IOException e) {
 			return secretKeys;
@@ -1733,15 +1796,12 @@ public final class ControllerUtil {
 	public static String  addDefaultSecretKey(String jsonString) {
 		try {
 			Map<String, Object> requestParams = new ObjectMapper().readValue(jsonString, new TypeReference<Map<String, Object>>(){});
+			@SuppressWarnings("unchecked")
 			LinkedHashMap<String, Object> map = (LinkedHashMap<String, Object>) requestParams.get("data");
 			if (map.isEmpty()) {
 				map.put("default", "default");
 			}
 			return JSONUtil.getJSON(requestParams);
-		} catch (JsonParseException e) {
-			return jsonString;
-		} catch (JsonMappingException e) {
-			return jsonString;
 		} catch (IOException e) {
 			return jsonString;
 		}
@@ -1758,18 +1818,18 @@ public final class ControllerUtil {
 		if (StringUtils.isEmpty(awsAuthLogin.getRole())) {
 			return false;
 		}
-				
+
 		if (AWSAuthType.EC2.equals(authType)) {
 			if (!StringUtils.isEmpty(awsAuthLogin.getPkcs7())) {
 				return true;
 			}
-		}
-		else if (AWSAuthType.IAM.equals(authType)) {
-			if (!StringUtils.isEmpty(awsAuthLogin.getIam_http_request_method()) || !StringUtils.isEmpty(awsAuthLogin.getIam_request_body())
-					|| !StringUtils.isEmpty(awsAuthLogin.getIam_request_headers()) || !StringUtils.isEmpty(awsAuthLogin.getIam_request_url())
-					) {
-				return true;
-			}
+		} else if ((AWSAuthType.IAM.equals(authType))
+				&& (!StringUtils.isEmpty(awsAuthLogin.getIam_http_request_method())
+						|| !StringUtils.isEmpty(awsAuthLogin.getIam_request_body())
+						|| !StringUtils.isEmpty(awsAuthLogin.getIam_request_headers())
+						|| !StringUtils.isEmpty(awsAuthLogin.getIam_request_url()))) {
+			return true;
+
 		}
 		return false;
 	}
@@ -1783,7 +1843,7 @@ public final class ControllerUtil {
 			return false;
 		}
 		if (StringUtils.isEmpty(awsLoginRole.getRole())) {
-			throw new TVaultValidationException("Role is required.");
+			throw new TVaultValidationException(ROLE_REQUIRED_STR);
 		}
 		else if (StringUtils.isEmpty(awsLoginRole.getAuth_type()) || !awsLoginRole.getAuth_type().equalsIgnoreCase("ec2")) {
 			throw new TVaultValidationException("auth_type is required and it should be ec2.");
@@ -1816,7 +1876,7 @@ public final class ControllerUtil {
 		}
 		
 		if (StringUtils.isEmpty(map.get("role"))) {
-			throw new TVaultValidationException("Role is required.");
+			throw new TVaultValidationException(ROLE_REQUIRED_STR);
 		}
 		else if (StringUtils.isEmpty(map.get("auth_type")) || !"ec2".equalsIgnoreCase(map.get("auth_type"))) {
 			throw new TVaultValidationException("auth_type is required and it should be ec2.");
@@ -1843,7 +1903,7 @@ public final class ControllerUtil {
 			return false;
 		}
 		if (StringUtils.isEmpty(awsiamRole.getRole())) {
-			throw new TVaultValidationException("Role is required.");
+			throw new TVaultValidationException(ROLE_REQUIRED_STR);
 		}
 		else if (StringUtils.isEmpty(awsiamRole.getAuth_type()) || !awsiamRole.getAuth_type().equalsIgnoreCase("iam")) {
 			throw new TVaultValidationException("auth_type is required and it should be iam.");
@@ -1866,7 +1926,7 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static HashMap<String, List<String>> getAllExistingSafeNames(String token) {
-		HashMap<String, List<String>> allExistingSafeNames = new HashMap<String, List<String>>();
+		HashMap<String, List<String>> allExistingSafeNames = new HashMap<>();
 		for (String mountPath : mountPaths) {
 			List<String> safeNames = getAllExistingSafeNames(mountPath, token);
 			allExistingSafeNames.put(mountPath, safeNames);
@@ -1879,9 +1939,9 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static List<String> getAllExistingSafeNames(String type, String token) {
-		List<String> safeNames = new ArrayList<String>();
-		String path = "metadata/" + type;
-		Response response = reqProcessor.process("/sdb/list","{\"path\":\""+path+"\"}",token);
+		List<String> safeNames = new ArrayList<>();
+		String path = METADATA_STR + type;
+		Response response = reqProcessor.process(SDB_LIST,PATH_STRING+path+"\"}",token);
 		if(response.getHttpstatus().equals(HttpStatus.OK)){
 			try {
 				Map<String, Object> requestParams = new ObjectMapper().readValue(response.getResponse(), new TypeReference<Map<String, Object>>(){});
@@ -1889,10 +1949,10 @@ public final class ControllerUtil {
 			} catch (Exception e) {
 				log.error("Unable to get list of safes.");
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 						put(LogMessage.ACTION, "getAllExistingSafeNames").
 						put(LogMessage.MESSAGE, String.format ("Unable to get list of safes due to [%s] ",e.getMessage())).
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 			}
 		}
@@ -1964,13 +2024,13 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static String populateAWSMetaJson(String appRoleName, String username) {
-		String _path = TVaultConstants.AWSROLE_METADATA_MOUNT_PATH + "/" + appRoleName;
+		String metaDataPath = TVaultConstants.AWSROLE_METADATA_MOUNT_PATH + '/' + appRoleName;
 		AppRoleMetadataDetails appRoleMetadataDetails = new AppRoleMetadataDetails(appRoleName);
 		appRoleMetadataDetails.setCreatedBy(username);
-		AppRoleMetadata appRoleMetadata =  new AppRoleMetadata(_path, appRoleMetadataDetails);
+		AppRoleMetadata appRoleMetadata =  new AppRoleMetadata(metaDataPath, appRoleMetadataDetails);
 		String jsonStr = JSONUtil.getJSON(appRoleMetadata);
 		Map<String,Object> rqstParams = ControllerUtil.parseJson(jsonStr);
-		rqstParams.put("path",_path);
+		rqstParams.put("path",metaDataPath);
 		return ControllerUtil.convetToJson(rqstParams);
 	}
 
@@ -1981,25 +2041,25 @@ public final class ControllerUtil {
 	 * @return
 	 */
 	public static boolean createMetadata(String metadataJson, String token) {
-		Response response = reqProcessor.process("/write",metadataJson,token);
+		Response response = reqProcessor.process(WRITE_SECRETS,metadataJson,token);
 		boolean isMetaDataUpdated = false;
 
 		if(response.getHttpstatus().equals(HttpStatus.NO_CONTENT)){
 			isMetaDataUpdated = true;
 			log.debug(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "createMetadata").
 					put(LogMessage.MESSAGE, "Metadata created successfully ").
 					put(LogMessage.STATUS, response.getHttpstatus().toString()).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		} else {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "createMetadata").
 					put(LogMessage.MESSAGE, "Failed to create metadata").
 					put(LogMessage.STATUS, response.getHttpstatus().toString()).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
 		}
 		return isMetaDataUpdated;
@@ -2014,8 +2074,8 @@ public final class ControllerUtil {
 	 */
 	public static Response canDeleteRole(String roleName, String token, UserDetails userDetails, String metadataPath) {
 		Response response = new Response();
-		String _path = metadataPath + "/" + roleName;
-		Response readResponse = reqProcessor.process("/read","{\"path\":\""+_path+"\"}",token);
+		String userMetaDataPath = metadataPath + '/' + roleName;
+		Response readResponse = reqProcessor.process(READ_SECRETS,PATH_STRING+userMetaDataPath+"\"}",token);
 		Map<String, Object> responseMap = null;
 		if(HttpStatus.OK.equals(readResponse.getHttpstatus())) {
 			responseMap = ControllerUtil.parseJson(readResponse.getResponse());
@@ -2059,13 +2119,13 @@ public final class ControllerUtil {
      * @return
      */
     public static  String populateAppRoleMetaJson(String appRoleName, String username) {
-        String _path = TVaultConstants.APPROLE_METADATA_MOUNT_PATH + "/" + appRoleName;
+        String metaDataPath = TVaultConstants.APPROLE_METADATA_MOUNT_PATH + '/' + appRoleName;
         AppRoleMetadataDetails appRoleMetadataDetails = new AppRoleMetadataDetails(appRoleName);
         appRoleMetadataDetails.setCreatedBy(username);
-        AppRoleMetadata appRoleMetadata =  new AppRoleMetadata(_path, appRoleMetadataDetails);
+        AppRoleMetadata appRoleMetadata =  new AppRoleMetadata(metaDataPath, appRoleMetadataDetails);
         String jsonStr = JSONUtil.getJSON(appRoleMetadata);
         Map<String,Object> rqstParams = ControllerUtil.parseJson(jsonStr);
-        rqstParams.put("path",_path);
+        rqstParams.put("path",metaDataPath);
         return ControllerUtil.convetToJson(rqstParams);
     }
     /**
@@ -2075,13 +2135,13 @@ public final class ControllerUtil {
      * @return
      */
     public static  String populateUserMetaJson(String appRoleName, String username) {
-        String _path = TVaultConstants.APPROLE_USERS_METADATA_MOUNT_PATH + '/' + username +'/' + appRoleName;
+        String metaDataPath = TVaultConstants.APPROLE_USERS_METADATA_MOUNT_PATH + '/' + username +'/' + appRoleName;
         AppRoleMetadataDetails appRoleMetadataDetails = new AppRoleMetadataDetails(appRoleName);
         appRoleMetadataDetails.setCreatedBy(username);
-        AppRoleMetadata appRoleMetadata =  new AppRoleMetadata(_path, appRoleMetadataDetails);
+        AppRoleMetadata appRoleMetadata =  new AppRoleMetadata(metaDataPath, appRoleMetadataDetails);
         String jsonStr = JSONUtil.getJSON(appRoleMetadata);
         Map<String,Object> rqstParams = ControllerUtil.parseJson(jsonStr);
-        rqstParams.put("path",_path);
+        rqstParams.put("path",metaDataPath);
         return ControllerUtil.convetToJson(rqstParams);
     }
 	/**
@@ -2095,19 +2155,19 @@ public final class ControllerUtil {
 		log.debug("Trying to read sscred file");
 		try {
 			ssFile = new File(fileLocation+"/sscred");
-			if (ssFile != null && ssFile.exists()) {
+			if (ssFile.exists()) {
 				sscred = new SSCred();
 				Scanner sc = new Scanner(ssFile); 
 				while (sc.hasNextLine()) {
 					String line = sc.nextLine();
-					if (line.startsWith("username:")) {
-						ssUsername = line.substring("username:".length(), line.length());
-						sscred.setUsername(line.substring("username:".length(), line.length()));
+					if (line.startsWith(USERNAME_SSCRED_STR)) {
+						ssUsername = line.substring(USERNAME_SSCRED_STR.length(), line.length());
+						sscred.setUsername(line.substring(USERNAME_SSCRED_STR.length(), line.length()));
 						log.debug("Successfully read username: from sscred file");
 					}
-					else if (line.startsWith("password:")) {
-						ssPassword = line.substring("password:".length(), line.length());
-						sscred.setPassword(line.substring("password:".length(), line.length()));
+					else if (line.startsWith(PASSWRD_SSCRED_STR)) {
+						ssPassword = line.substring(PASSWRD_SSCRED_STR.length(), line.length());
+						sscred.setPassword(line.substring(PASSWRD_SSCRED_STR.length(), line.length()));
 						log.debug("Successfully read password: from sscred file");
 					}
 				}
@@ -2117,15 +2177,12 @@ public final class ControllerUtil {
 			log.error(String.format("Unable to read sscred file: [%s]", e.getMessage()));
 		}
 		try {
-			if (ssFile != null && ssFile.exists() && isDelete) {
-				if (ssFile.delete()) {
-					log.debug("Successfully deleted sscred file");
-				}
-				else {
-					log.error("Unable to get delete sscred file");
-				}
+			if (ssFile.exists() && isDelete) {
+				Path path = Paths.get(fileLocation+"/sscred");				
+				Files.delete(path);
+				log.debug("Successfully deleted sscred file");				
 			}
-		} catch (Exception e) {
+		} catch (IOException e) {
 			log.error(String.format("Unable to get delete sscred file: [%s]", e.getMessage()));
 		}
 		return sscred;
@@ -2166,7 +2223,7 @@ public final class ControllerUtil {
         } catch (IOException e) {
             log.error(e);
         }
-        if (null != requestMap.get("keys")) {
+        if (requestMap != null && null != requestMap.get("keys")) {
 			List<String> policyList = new ArrayList<>(Arrays.asList((String[]) requestMap.get("keys")));
 			policyList.remove(TVaultConstants.SELF_SERVICE_APPROLE_NAME);
 			String policies = policyList.stream().collect(Collectors.joining("\", \""));

@@ -35,7 +35,6 @@ import org.springframework.stereotype.Component;
 import com.tmobile.cso.vault.api.model.UserLogin;
 import com.tmobile.cso.vault.api.process.RequestProcessor;
 import com.tmobile.cso.vault.api.process.Response;
-import com.tmobile.cso.vault.api.utils.AuthorizationUtils;
 import com.tmobile.cso.vault.api.utils.JSONUtil;
 
 import java.io.IOException;
@@ -46,9 +45,6 @@ public class  VaultAuthService {
 
 	@Autowired
 	private RequestProcessor reqProcessor;
-	
-	@Autowired
-	private AuthorizationUtils authorizationUtils;
 
 	@Value("${vault.auth.method}")
 	private String vaultAuthMethod;
@@ -60,6 +56,8 @@ public class  VaultAuthService {
 	private boolean isAdPswdRotationEnabled;
 
 	private static Logger log = LogManager.getLogger(VaultAuthService.class);
+	
+	private static final String ACCESS = "access";
 
 	/**
 	 * Logs a user in to TVault using ldap or userpass authentication methods
@@ -89,11 +87,11 @@ public class  VaultAuthService {
 						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 			}
-			if(responseMap!=null && responseMap.get("access")!=null) {
-				Map<String,Object> access = (Map<String,Object>)responseMap.get("access");
+			if(responseMap!=null && responseMap.get(ACCESS)!=null) {
+				Map<String,Object> access = (Map<String,Object>)responseMap.get(ACCESS);
 				access = filterDuplicateSafePermissions(access);
 				access = filterDuplicateSvcaccPermissions(access);
-				responseMap.put("access", access);
+				responseMap.put(ACCESS, access);
 				// set SS, AD password rotation enable status
 				Map<String,Object> feature = new HashMap<>();
 				feature.put(TVaultConstants.SELFSERVICE, isSSEnabled);
@@ -128,22 +126,26 @@ public class  VaultAuthService {
 					//map to check duplicate permission
 					Map<String,String> filteredPermissions = Collections.synchronizedMap(new HashMap());
 					List<Map<String,String>> updatedPermissionList = new ArrayList<>();
-					for (Map<String,String> permissionMap: safePermissions) {
-						Set<String> keys = permissionMap.keySet();
-						String key = keys.stream().findFirst().orElse("");
-
-						if (!key.equals("") && !filteredPermissions.containsKey(key)) {
-							filteredPermissions.put(key, permissionMap.get(key));
-							Map<String,String> permission = Collections.synchronizedMap(new HashMap());
-							permission.put(key, permissionMap.get(key));
-							updatedPermissionList.add(permission);
-						}
-					}
+					updatePermission(safePermissions, filteredPermissions, updatedPermissionList);
 					access.put(type, updatedPermissionList);
 				}
 			}
 		}
 		return access;
+	}
+	private void updatePermission(List<Map<String, String>> safePermissions, Map<String, String> filteredPermissions,
+			List<Map<String, String>> updatedPermissionList) {
+		for (Map<String,String> permissionMap: safePermissions) {
+			Set<String> keys = permissionMap.keySet();
+			String key = keys.stream().findFirst().orElse("");
+
+			if (!key.equals("") && !filteredPermissions.containsKey(key)) {
+				filteredPermissions.put(key, permissionMap.get(key));
+				Map<String,String> permission = Collections.synchronizedMap(new HashMap());
+				permission.put(key, permissionMap.get(key));
+				updatedPermissionList.add(permission);
+			}
+		}
 	}
 
 	/**
@@ -158,17 +160,7 @@ public class  VaultAuthService {
 				//map to check duplicate permission
 				Map<String,String> filteredPermissions = Collections.synchronizedMap(new HashMap());
 				List<Map<String,String>> updatedPermissionList = new ArrayList<>();
-				for (Map<String,String> permissionMap: svcaccPermissions) {
-					Set<String> keys = permissionMap.keySet();
-					String key = keys.stream().findFirst().orElse("");
-
-					if (!key.equals("") && !filteredPermissions.containsKey(key)) {
-						filteredPermissions.put(key, permissionMap.get(key));
-						Map<String,String> permission = Collections.synchronizedMap(new HashMap());
-						permission.put(key, permissionMap.get(key));
-						updatedPermissionList.add(permission);
-					}
-				}
+				updatePermission(svcaccPermissions, filteredPermissions, updatedPermissionList);
 				access.put(TVaultConstants.SVC_ACC_PATH_PREFIX, updatedPermissionList);
 			}
 		}

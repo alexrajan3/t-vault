@@ -868,7 +868,7 @@ public class ServiceAccountsServiceTest {
         // System under test
     	String expectedResponse = "{\"messages\":[\"Successfully completed offboarding of AD service account from TVault for password rotation.\"]}";
         ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.OK).body(expectedResponse);
-        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount, userDetails);
+        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
         assertEquals(responseEntityExpected, responseEntity);
     }
@@ -938,7 +938,7 @@ public class ServiceAccountsServiceTest {
         // System under test
         String expectedResponse = "{\"errors\":[\"Failed to offboard AD service account from TVault for password rotation.\"]}";
         ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.MULTI_STATUS).body(expectedResponse);
-        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount, userDetails);
+        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount);
         assertEquals(HttpStatus.MULTI_STATUS, responseEntity.getStatusCode());
         assertEquals(responseEntityExpected, responseEntity);
     }
@@ -1012,7 +1012,7 @@ public class ServiceAccountsServiceTest {
         // System under test
         String expectedResponse = "{\"errors\":[\"Failed to offboard AD service account from TVault for password rotation.\"]}";
         ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.MULTI_STATUS).body(expectedResponse);
-        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount, userDetails);
+        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount);
         assertEquals(HttpStatus.MULTI_STATUS, responseEntity.getStatusCode());
         assertEquals(responseEntityExpected, responseEntity);
     }
@@ -1085,7 +1085,7 @@ public class ServiceAccountsServiceTest {
         // System under test
         String expectedResponse = "{\"messages\":[\"Successfully completed offboarding of AD service account from TVault for password rotation.\"]}";
         ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.OK).body(expectedResponse);
-        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount, userDetails);
+        ResponseEntity<String> responseEntity = serviceAccountsService.offboardServiceAccount(token, onboardedServiceAccount);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
         assertEquals(responseEntityExpected, responseEntity);
     }
@@ -1855,7 +1855,7 @@ public class ServiceAccountsServiceTest {
     	String onboardedServiceAccountDetailsJSON  = getJSON(onboardedServiceAccountDetails);
     	when(JSONUtil.getJSON(Mockito.any(OnboardedServiceAccountDetails.class))).thenReturn(onboardedServiceAccountDetailsJSON);
     	ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.OK).body(onboardedServiceAccountDetailsJSON);
-    	ResponseEntity<String> responseEntity = serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName, userDetails);
+    	ResponseEntity<String> responseEntity = serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName);
     	assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
     	assertEquals(responseEntityExpected, responseEntity);
     }
@@ -1874,30 +1874,26 @@ public class ServiceAccountsServiceTest {
     	// System under test
     	String expectedMsg = "{\"errors\":[\"Either Service Account is not onbaorderd or you don't have enough permission to read\"]}";
     	ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.NOT_FOUND).body(expectedMsg);
-    	ResponseEntity<String> responseEntity = serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName, userDetails);
+    	ResponseEntity<String> responseEntity = serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName);
     	assertEquals(HttpStatus.NOT_FOUND, responseEntity.getStatusCode());
     	assertEquals(responseEntityExpected, responseEntity);
     }
 
     @Test
-    public void test_canAddOrRemoveUser_admin_canadd() {
+    public void testCanAddOrRemoveUserAdminCanadd() {
     	UserDetails userDetails = getMockUser(true);
-    	ServiceAccountUser serviceAccountUser = new ServiceAccountUser("testacc02", "testacc01", "read");
-    	String action = "addUser";
     	boolean expected = true;
     	// System under test
-    	boolean actual = serviceAccountsService.canAddOrRemoveUser(userDetails, serviceAccountUser, action);
+    	boolean actual = serviceAccountsService.canAddOrRemoveUser(userDetails);
     	assertEquals(expected, actual);
     }
 
     @Test
-    public void test_canAddOrRemoveUser_nonadmin_canadd() {
-    	UserDetails userDetails = getMockUser(false);
-    	ServiceAccountUser serviceAccountUser = new ServiceAccountUser("testacc02", "testacc01", "read");
-    	String action = "addUser";
+    public void testCanAddOrRemoveUserNonadminCanadd() {
+    	UserDetails userDetails = getMockUser(false); 
     	boolean expected = false;
     	// System under test
-    	boolean actual = serviceAccountsService.canAddOrRemoveUser(userDetails, serviceAccountUser, action);
+    	boolean actual = serviceAccountsService.canAddOrRemoveUser(userDetails);
     	assertEquals(expected, actual);
     }
 

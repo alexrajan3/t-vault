@@ -75,8 +75,7 @@ public class ServiceAccountsControllerV2 {
 	@ApiOperation(value = "${ServiceAccountsControllerV2.getServiceAccountDetails.value}", notes = "${ServiceAccountsControllerV2.getServiceAccountDetails.notes}")
 	@GetMapping(value="/v2/serviceaccounts/{service_account_name}", produces="application/json")
 	public ResponseEntity<String> getServiceAccounts(HttpServletRequest request, @RequestHeader(value="vault-token") String token, @PathVariable("service_account_name" ) String svcAccName){
-		UserDetails userDetails = (UserDetails) ((HttpServletRequest) request).getAttribute("UserDetails");
-		return serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName, userDetails);
+		return serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName);
 	}
 	/**
 	 * Onbaords a service account for password rotation
@@ -153,8 +152,7 @@ public class ServiceAccountsControllerV2 {
 	@ApiOperation(value = "${ServiceAccountsControllerV2.offboardServiceAccount.value}", notes = "${ServiceAccountsControllerV2.offboardServiceAccount.notes}")
 	@PostMapping(value="/v2/serviceaccounts/offboard", produces="application/json")
 	public ResponseEntity<String> offboardServiceAccount( HttpServletRequest request, @RequestHeader(value="vault-token") String token, @RequestBody OnboardedServiceAccount serviceAccount ){
-		UserDetails userDetails = (UserDetails) ((HttpServletRequest) request).getAttribute("UserDetails");
-		return serviceAccountsService.offboardServiceAccount(token, serviceAccount, userDetails);
+		return serviceAccountsService.offboardServiceAccount(token, serviceAccount);
 	}
 
     /**

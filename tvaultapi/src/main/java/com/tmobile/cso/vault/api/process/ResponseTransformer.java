@@ -1,19 +1,19 @@
-// =========================================================================
-// Copyright 2019 T-Mobile, US
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// See the readme.txt file for additional language around disclaimer of warranties.
-// =========================================================================
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 
 package com.tmobile.cso.vault.api.process;
 
@@ -23,29 +23,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
 import com.tmobile.cso.vault.api.config.ApiConfig;
+
 @Component
 public  class ResponseTransformer {
 	
 	@Autowired
 	RestProcessor restprocessor;
 	
+	private static Logger log = LogManager.getLogger(ResponseTransformer.class);
+	
 	public void transform(ApiConfig apiConfig,Map<String, Object> responseparams,String token){
 		switch (apiConfig.getApiEndPoint()){
 			case "/auth/ldap/login":
 			case "/auth/userpass/login":
 			case "/auth/approle/login":
-			case "/auth/aws/login":{
+			case "/auth/aws/login":
 				fetchSDBPaths(responseparams,token);
-				break;
-			}
-			case "/sdb/list": {
+				break;			
+			case "/sdb/list": 
 				removeDuplicateNames(responseparams);
 				break;
-			}
+			default: log.error("Invalid api endpoint"); break;
 		}
 		
 	}
@@ -64,25 +67,25 @@ public  class ResponseTransformer {
 		@SuppressWarnings("unchecked")
 		List<String> policies = (List<String>)((Map<String,Object>) responseparams.get("auth")).get("policies");
 		
-		Map<String,Object> accessMap = new HashMap<String,Object>();
+		Map<String,Object> accessMap = new HashMap<>();
 		for(String policy : policies){
-			String policySplit[] = policy.split("_");
+			String[] policySplit = policy.split("_");
 			if(policySplit.length >=3 && ("r".equals(policySplit[0]) || "w".equals(policySplit[0])|| "d".equals(policySplit[0]))){
 				String mount = policySplit[1];
 				
-				List<String> folderNameParts = new ArrayList<String>();
+				List<String> folderNameParts = new ArrayList<>();
 				for(int i=2;i<policySplit.length;i++){
 					folderNameParts.add(policySplit[i]);
 				}
 				
 				String folder = folderNameParts.stream().collect(Collectors.joining("_"));
 				
-				Map<String,String> access = new HashMap<String,String>();
+				Map<String,String> access = new HashMap<>();
 				
 				@SuppressWarnings("unchecked")
 				List<Map<String,String>> accesses = (List<Map<String,String>>) accessMap.get(mount);
 				if(accesses == null) {
-					accesses = new ArrayList<Map<String,String>>();
+					accesses = new ArrayList<>();
 					accessMap.put(mount, accesses);
 				}
 				
@@ -90,6 +93,7 @@ public  class ResponseTransformer {
 					case "r": access.put(folder,"read"); break;
 					case "w": access.put(folder,"write"); break;
 					case "d": access.put(folder,"deny"); break;
+					default: log.error("Invalid access policy"); break;
 				}
 				accesses.add(access);
 			}

@@ -199,7 +199,7 @@ public class ServiceAccountsControllerV2Test {
         String expected = getJSON(onboardedServiceAccountDetails);
         ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.OK).body(expected);
         
-        when(serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName, userDetails)).thenReturn(responseEntityExpected);
+        when(serviceAccountsService.getOnboarderdServiceAccount(token, svcAccName)).thenReturn(responseEntityExpected);
         
         MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/v2/serviceaccounts/"+svcAccName)
                 .header("vault-token", token)
@@ -341,7 +341,7 @@ public class ServiceAccountsControllerV2Test {
    	
         String expected = "{\"messages\":[\"Successfully completed offboarding of AD service account from TVault for password rotation.\"]}";
         ResponseEntity<String> responseEntityExpected = ResponseEntity.status(HttpStatus.OK).body(expected);
-        when(serviceAccountsService.offboardServiceAccount(Mockito.anyString(), Mockito.any(), Mockito.any())).thenReturn(responseEntityExpected);
+        when(serviceAccountsService.offboardServiceAccount(Mockito.anyString(), Mockito.any())).thenReturn(responseEntityExpected);
         String inputJson = getJSON(serviceAccount);
         MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/v2/serviceaccounts/offboard")
                 .header("vault-token", token)

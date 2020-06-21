@@ -1,3 +1,19 @@
+/** *******************************************************************************
+*  Copyright 2019 T-Mobile, US
+*   
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*  
+*     http://www.apache.org/licenses/LICENSE-2.0
+*  
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+*  See the readme.txt file for additional language around disclaimer of warranties.
+*********************************************************************************** */
 package com.tmobile.cso.vault.api.utils;
 
 import java.awt.image.BufferedImage;
@@ -39,7 +55,7 @@ public class EmailUtils {
 	private Logger log = LogManager.getLogger(EmailUtils.class);
 	
 	public EmailUtils() {
-		// TODO Auto-generated constructor stub
+		// no-arg constructor
 	}
 
 	/**
@@ -72,28 +88,21 @@ public class EmailUtils {
 				}
 			} catch (IOException e) {
 				log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+						put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 						put(LogMessage.ACTION, "sendHtmlEmalFromTemplate").
 						put(LogMessage.MESSAGE, "Failed to get byte array from resource").
-						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+						put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 						build()));
 			}
 			javaMailSender.send(message);
-		} catch (MessagingException e) {
+		} catch (MessagingException | MailSendException e) {
 			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
+					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER)).
 					put(LogMessage.ACTION, "sendHtmlEmalFromTemplate").
 					put(LogMessage.MESSAGE, String.format ("Failed to send email notification to Service account owner %s for service account %s", to.get(0), variables.get("svcAccName"))).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
+					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL)).
 					build()));
-		} catch (MailSendException exception) {
-			log.error(JSONUtil.getJSON(ImmutableMap.<String, String>builder().
-					put(LogMessage.USER, ThreadLocalContext.getCurrentMap().get(LogMessage.USER).toString()).
-					put(LogMessage.ACTION, "sendHtmlEmalFromTemplate").
-					put(LogMessage.MESSAGE, String.format ("Failed to send email notification to Service account owner %s for service account %s", to.get(0), variables.get("svcAccName"))).
-					put(LogMessage.APIURL, ThreadLocalContext.getCurrentMap().get(LogMessage.APIURL).toString()).
-					build()));
-		}
+		} 
 	}
 
 	/**
