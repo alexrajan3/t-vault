@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.tmobile.cso.vault.api.validator.TokenValidatorTest
--------------------------------------------------------------------------------
-Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.599 sec - in com.tmobile.cso.vault.api.validator.TokenValidatorTest

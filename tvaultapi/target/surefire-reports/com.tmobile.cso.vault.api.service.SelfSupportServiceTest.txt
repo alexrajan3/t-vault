@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.tmobile.cso.vault.api.service.SelfSupportServiceTest
--------------------------------------------------------------------------------
-Tests run: 82, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.726 sec - in com.tmobile.cso.vault.api.service.SelfSupportServiceTest
