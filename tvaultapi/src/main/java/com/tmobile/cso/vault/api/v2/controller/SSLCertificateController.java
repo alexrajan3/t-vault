@@ -18,6 +18,7 @@ package com.tmobile.cso.vault.api.v2.controller;
 
 
 import com.tmobile.cso.vault.api.model.CertManagerLoginRequest;
+import com.tmobile.cso.vault.api.model.CertificateUser;
 import com.tmobile.cso.vault.api.model.SSLCertificateRequest;
 import com.tmobile.cso.vault.api.model.UserDetails;
 import com.tmobile.cso.vault.api.service.SSLCertificateService;
@@ -59,6 +60,19 @@ public class SSLCertificateController {
 			"vault-token") String token,@Valid @RequestBody SSLCertificateRequest sslCertificateRequest)  {
 		UserDetails userDetails = (UserDetails) ((HttpServletRequest) request).getAttribute("UserDetails");
 		return sslCertificateService.generateSSLCertificate(sslCertificateRequest,userDetails,token);
+	}
+	
+	/**
+	 * Adds user with a read permission to a certificate
+	 * @param token
+	 * @param certificateUser
+	 * @return
+	 */
+	@ApiOperation(value = "${SSLCertificateController.addUserToCertificate.value}", notes = "${SSLCertificateController.addUserToCertificate.notes}")
+	@PostMapping(value="/v2/sslcert/user",consumes="application/json",produces="application/json")
+	public ResponseEntity<String> addUserToCertificate(HttpServletRequest request, @RequestHeader(value="vault-token") String token, @RequestBody CertificateUser certificateUser){
+		UserDetails userDetails = (UserDetails) request.getAttribute("UserDetails");
+		return sslCertificateService.addUserToCertificate(token, certificateUser, userDetails);
 	}
 
 }
