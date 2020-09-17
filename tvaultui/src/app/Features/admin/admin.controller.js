@@ -1489,9 +1489,9 @@
                         if (data[index].appTag !='' && data[index].appTag != null && data[index].appTag != undefined) {
                             appTag = data[index].appTag;
                         }
-                        if($scope.assignedApplications.includes(appTag)){
+                        //if($scope.assignedApplications.includes(appTag)){
                             $scope.appNameTableOptions.push({"type":value, "name": name, "tag": appTag, "id": appID});
-                        }
+                        //}
                     }
                 }
                 else {
@@ -2069,7 +2069,7 @@
                 if ($scope.certObj.certDetails.ownerEmail != null && $scope.certObj.certDetails.ownerEmail != undefined
                     && $scope.certObj.certDetails.ownerEmail != "") {
                     
-                    if ($rootScope.certDetails.certOwnerEmailId==$scope.certObj.certDetails.ownerEmail) {
+                    if ($rootScope.certDetails.certOwnerEmailId.toLowerCase()==$scope.certObj.certDetails.ownerEmail.toLowerCase()) {
                         $scope.certOwnerEmailErrorMessage = "New owner email id should not be same as owner email id"
                         $scope.certTransferInValid = true;
                     } 
@@ -2085,7 +2085,7 @@
                     if ($scope.certObj.certDetails.ownerEmail != null && $scope.certObj.certDetails.ownerEmail != undefined
                             && $scope.certObj.certDetails.ownerEmail != "") {
                             
-                            if ($rootScope.certDetails.certOwnerEmailId==$scope.certObj.certDetails.ownerEmail) {                            	
+                            if ($rootScope.certDetails.certOwnerEmailId.toLowerCase()==$scope.certObj.certDetails.ownerEmail.toLowerCase()) {
                                 $scope.certOwnerEmailErrorMessage = "New owner email id should not be same as owner email id"
                                 $scope.certTransferInValid = true;
                             } 
